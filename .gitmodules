@@ -1,0 +1,3 @@
+[submodule "inst/StanTVA"]
+	path = inst/StanTVA
+	url = https://github.com/mmrabe/StanTVA.git
