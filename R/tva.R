@@ -79,13 +79,14 @@ setMethod("model_code", "stanfit", function(object, type) {
 })
 
 #'@export
-tva_model_code <- function(locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("equal","locations","regions"), t0_mode = c("constant", "gaussian"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), parallel = FALSE, save_log_lik = FALSE, predict_scores = FALSE, priors = FALSE, sanity_checks = FALSE, simulate = FALSE) {
+tva_model_code <- function(locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("equal","locations","regions"), t0_mode = c("constant", "gaussian"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), parallel = FALSE, save_log_lik = FALSE, predict_scores = FALSE, priors = FALSE, sanity_checks = FALSE, simulate = FALSE, type = c("stan","stan2","cpp")) {
 
   task <- match.arg(task)
   C_mode <- match.arg(C_mode)
   t0_mode <- match.arg(t0_mode)
   K_mode <- match.arg(K_mode)
   w_mode <- match.arg(w_mode)
+  type <- match.arg(type)
 
 
 
@@ -645,6 +646,12 @@ tva_model_code <- function(locations, task = c("wr","pr"), regions = list(), C_m
     ),
     collapse="\n"
   )
+
+  if(type == "stan2") {
+    ret <- stanc(model_code = ret, isystem = stantva_path())$model_code
+  } else if(type == "cpp") {
+    ret <- stanc(model_code = ret, isystem = stantva_path())$cppcode
+  }
 
   attr(ret, "tvaconfig") <- call_args_list
 
