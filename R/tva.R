@@ -655,6 +655,8 @@ tva_model_code <- function(locations, task = c("wr","pr"), regions = list(), C_m
 
   attr(ret, "tvaconfig") <- call_args_list
 
+  attr(ret, "include_path") <- stantva_path()
+
   ret
 
 }
@@ -665,7 +667,7 @@ tva_model_code <- function(locations, task = c("wr","pr"), regions = list(), C_m
 tva_model <- function(..., stan_options = list()) {
   mc <- tva_model_code(...)
   stan_options$model_code <- mc
-  stan_options$isystem <- c(stantva_path(),stan_options$isystem)
+  stan_options$isystem <- c(attr(mc, "include_path"),stan_options$isystem)
   m <- do.call(stan_model, stan_options) %>% as("stantvamodel")
   m@config <- attr(mc, "tvaconfig")
   m
