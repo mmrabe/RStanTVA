@@ -79,7 +79,7 @@ setMethod("model_code", "stanfit", function(object, type) {
 })
 
 #'@export
-tva_model_code <- function(locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("equal","locations","regions"), t0_mode = c("constant", "gaussian"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), parallel = FALSE, save_log_lik = FALSE, predict_scores = FALSE, priors = FALSE, sanity_checks = FALSE, simulate = FALSE, type = c("stan","stan2","cpp")) {
+stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("equal","locations","regions"), t0_mode = c("constant", "gaussian"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), parallel = FALSE, save_log_lik = FALSE, predict_scores = FALSE, priors = FALSE, sanity_checks = FALSE, simulate = FALSE, type = c("stan","stan2","cpp")) {
 
   task <- match.arg(task)
   C_mode <- match.arg(C_mode)
@@ -662,10 +662,9 @@ tva_model_code <- function(locations, task = c("wr","pr"), regions = list(), C_m
 }
 
 
-
 #'@export
-tva_model <- function(..., stan_options = list()) {
-  mc <- tva_model_code(...)
+stantva_model <- function(..., stan_options = list()) {
+  mc <- stantva_code(...)
   stan_options$model_code <- mc
   stan_options$isystem <- c(attr(mc, "include_path"),stan_options$isystem)
   m <- do.call(stan_model, stan_options) %>% as("stantvamodel")
