@@ -673,6 +673,20 @@ stantva_model <- function(..., stan_options = list()) {
 }
 
 
+#'@export
+stantva_write_model <- function(model, file) {
+  code <- if(inherits(model, "stantvamodel") || inherits(model, "stantvafit")) {
+    model_code(model)
+  } else if(is.character(model)) {
+    model
+  } else if(is.list(model)) {
+    model$type <- "stan"
+    do.call(stantva_code, model)
+  }
+  writeLines(code, file)
+}
+
+
 #'@importClassesFrom rstan stanmodel
 #'@export
 stantvamodel <- setClass("stantvamodel", contains = "stanmodel", slots = c("config" = "list"))
