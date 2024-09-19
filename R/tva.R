@@ -4,6 +4,7 @@
 #'@importFrom readr read_table write_tsv
 #'@importFrom methods formalArgs new as
 #'@importFrom stats na.omit
+#'@importFrom cli col_cyan col_magenta
 #'
 
 #'@export
@@ -618,10 +619,9 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
   header <- c(
     "StanTVA",
     "=======",
-    "This is a StanTVA (Rabe et al., 2025) program, generated with RStanTVA. Please cite as:",
+    "This is a StanTVA program, generated with RStanTVA. Please cite as:",
     "",
-    "...",
-    #unlist(strsplit(format(citation("hypr"), style="Bibtex"),"\n")),
+    paste0("  ", strsplit(format(citation("RStanTVA"), style="text"),"\n")[[1]]),
     "",
     "Configuration",
     "=============",
@@ -699,9 +699,9 @@ stantvafit <- setClass("stantvafit", contains = "stanfit", slots = c("stanmodel"
 
 #'@export
 setMethod("show", c(object="stantvamodel"), function(object) {
-  cat("StanTVA model with following configuration:\n")
+  cat(col_cyan("StanTVA"), " model with following configuration:\n")
   for(cname in names(object@config)) {
-    cat(" - ", cname, "=", deparse(object@config[[cname]]),"\n")
+    cat(" - ", col_magenta(cname), "=", deparse(object@config[[cname]]),"\n")
   }
 })
 
