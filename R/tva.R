@@ -63,7 +63,20 @@ write_tva_data <- function(data, file, ...) {
   ) %>% write_tsv(f, col_names = FALSE, ...)
 }
 
+setGeneric("model_code", function(object, ...) {})
 
+#'@export
+setMethod("model_code", "stanmodel", function(object, type = c("stan","cpp")) {
+  type <- match.arg(type)
+  if(type == "stan") object@model_code
+  else if(type == "cpp") object@model_cpp
+  else stop("Unknown type “", type,"”!")
+})
+
+#'@export
+setMethod("model_code", "stanfit", function(object, type) {
+  model_code(object@stanmodel, type)
+})
 
 #'@export
 tva_model_code <- function(locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("equal","locations","regions"), t0_mode = c("constant", "gaussian"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), parallel = FALSE, save_log_lik = FALSE, predict_scores = FALSE, priors = FALSE, sanity_checks = FALSE, simulate = FALSE) {
