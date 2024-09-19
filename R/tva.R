@@ -271,10 +271,10 @@ tva_model_code <- function(locations, task = c("wr","pr"), regions = list(), C_m
     add_param(name = "w", type = sprintf("vector[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype = "vector", dim = locations, transformed = TRUE)
     add_code(
       "transformed parameters",
-      sprintf("w = rep_vector(1.0, %1$d)/%1$d;", locations)
+      sprintf("w = rep_vector(1.0/%1$d.0, %1$d);", locations)
     )
   } else if(w_mode == "regions") {
-    if(length(regions) == 0) stop("You must define regions if w_mode == `regions`!")
+    if(length(regions) == 0) stop("You must define regions if w_mode = “regions”!")
     add_param(name = "w", type = sprintf("vector[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype = "vector", dim = locations, transformed = TRUE)
     add_param(name = "b", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = substitute(~dirichlet(ones_vector(nR)), list(nR = length(regions))) )
     for(i in seq_along(regions)) {
