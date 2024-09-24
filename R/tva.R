@@ -675,7 +675,7 @@ stantva_model <- function(..., stan_options = list()) {
 
 
 #'@export
-stantva_write_model <- function(model, file) {
+write_stantva_model <- function(model, file = stdout()) {
   code <- if(inherits(model, "stantvamodel") || inherits(model, "stantvafit")) {
     model_code(model)
   } else if(is.character(model)) {
