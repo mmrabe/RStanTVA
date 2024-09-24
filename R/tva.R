@@ -32,8 +32,9 @@ read_tva_data <- function(file, ...) {
     N <- nrow(.)
     . <- as.list(.)
     .$N <- N
+    .$locations <- ncol(.$S)
     .
-  }
+  } %>% as("tvadata")
 }
 
 
@@ -68,9 +69,10 @@ write_tva_data <- function(data, file, ...) {
 setGeneric("model_code", function(object, ...) {})
 
 #'@export
-setMethod("model_code", "stanmodel", function(object, type = c("stan","cpp")) {
+setMethod("model_code", "stanmodel", function(object, type = c("stan","stan2","cpp")) {
   type <- match.arg(type)
-  if(type == "stan") object@model_code
+  if(type == "stan") object@code
+  else if(type == "stan2") object@model_code
   else if(type == "cpp") object@model_cpp
   else stop("Unknown type “", type,"”!")
 })
@@ -459,7 +461,7 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
       "transformed parameters",
       "for(i in 1:N) {",
       paste0("\tv[i,:nS[i]] = calculate_v(", paste(c(datsig(names_back = v_data, types = FALSE, index = "i"), parsig(names_back = v_pars, types = FALSE, index = "i")), collapse=", "),");"),
-      sprintf("\tv[i,(nS[i]+1):] = rep_vector(0.0, %d-nS[i]);", locations),
+      sprintf("\tif(nS[i] < %1$d) v[i,(nS[i]+1):] = rep_vector(0.0, %1$d-nS[i]);", locations),
       "}"
     )
   }
@@ -622,7 +624,7 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
     "=======",
     "This is a StanTVA program, generated with RStanTVA. Please cite as:",
     "",
-    paste0("  ", strsplit(format(citation("RStanTVA"), style="text"),"\n")[[1]]),
+    strsplit(format(citation("RStanTVA"), style="text"),"\n")[[1]],
     "",
     "Configuration",
     "=============",
@@ -630,9 +632,8 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
     "",
     "License",
     "=======",
-    "StanTVA and RStanTVA are licensed under the GNU General Public License 3. For a",
-    "copy of the license agreement, see: https://www.gnu.org/licenses/gpl-3.0.html"
-  )
+    "StanTVA and RStanTVA are licensed under the GNU General Public License 3. For a copy of the license agreement, see: https://www.gnu.org/licenses/gpl-3.0.html"
+  ) %>% ansi_strwrap(width = 80L)
 
 
   ret <- paste(
@@ -654,22 +655,28 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
     ret <- stanc(model_code = ret, isystem = stantva_path())$cppcode
   }
 
-  attr(ret, "tvaconfig") <- call_args_list
-
-  attr(ret, "include_path") <- stantva_path()
-
-  ret
-
+  new("stantvacode", code = ret, config = call_args_list, include_path = stantva_path())
 }
+
+#'@export
+stantvacode <- setClass("stantvacode", slots = c("code" = "character", "config" = "list", "include_path" = "character"))
+
+
+#'@export
+setMethod("show", "stantvacode", function(object) {
+  cat(col_grey("// Include path(s): ", paste0(object@include_path, collapse="; ")),"\n")
+  cat(object@code)
+})
 
 
 #'@export
 stantva_model <- function(..., stan_options = list()) {
-  mc <- stantva_code(...)
-  stan_options$model_code <- mc
-  stan_options$isystem <- c(attr(mc, "include_path"),stan_options$isystem)
+  args <- list(...)
+  mc <- if(length(args) == 1 && inherits(args[[1]], "stantvacode")) args[[1]] else do.call(stantva_code, args)
+  stan_options$model_code <- mc@code
+  stan_options$isystem <- c(mc@include_path, stan_options$isystem)
   m <- do.call(stan_model, stan_options) %>% as("stantvamodel")
-  m@config <- attr(mc, "tvaconfig")
+  m@code <- mc
   m
 }
 
@@ -678,19 +685,56 @@ stantva_model <- function(..., stan_options = list()) {
 write_stantva_model <- function(model, file = stdout()) {
   code <- if(inherits(model, "stantvamodel") || inherits(model, "stantvafit")) {
     model_code(model)
-  } else if(is.character(model)) {
+  } else if(inherits(model, "stantvacode")) {
     model
-  } else if(is.list(model)) {
-    model$type <- "stan"
-    do.call(stantva_code, model)
+  } else {
+    stop("`model` must be of type stantvamodel, stantvafit or stantvacode!")
   }
-  writeLines(code, file)
+  writeLines(code@code, file)
 }
+
+
+
+
+#'@export
+tvadata <- setClass("tvadata", contains = "list")
+
+
+#'@importClassesFrom tibble tbl_df
+#'@export
+tvareport <- setClass("tvareport", contains = "tbl_df")
+
+#'@export
+setMethod("summary", "tvadata", function(object, ...) {
+  tva_report(object, ...)
+})
+
+#'@export
+setMethod("show", "tvadata", function(object) {
+  if(is.null(object$D)) {
+    cat(col_cyan("TVA"), "data containing",object$N,"whole-report trial(s)\n")
+  } else {
+    cat(col_cyan("TVA"), "data containing",object$N,"whole- and/or partial-report trial(s)\n")
+  }
+  str(object)
+})
+
+
+#'@export
+setMethod("show", "tvareport", function(object) {
+  if(is.null(object$n_distractors)) {
+    cat(col_cyan("TVA"), "report for",nrow(object),"whole-report trial(s)\n")
+  } else {
+    cat(col_cyan("TVA"), "report for",nrow(object),"whole- and/or partial-report trial(s)\n")
+  }
+  callNextMethod()
+})
+
 
 
 #'@importClassesFrom rstan stanmodel
 #'@export
-stantvamodel <- setClass("stantvamodel", contains = "stanmodel", slots = c("config" = "list"))
+stantvamodel <- setClass("stantvamodel", contains = "stanmodel", slots = c("code" = "stantvacode"))
 
 #'@importClassesFrom rstan stanfit
 #'@export
@@ -700,9 +744,9 @@ stantvafit <- setClass("stantvafit", contains = "stanfit", slots = c("stanmodel"
 
 #'@export
 setMethod("show", c(object="stantvamodel"), function(object) {
-  cat(col_cyan("StanTVA"), " model with following configuration:\n")
-  for(cname in names(object@config)) {
-    cat(" - ", col_magenta(cname), "=", deparse(object@config[[cname]]),"\n")
+  cat(col_cyan("StanTVA"), "model with following configuration:\n")
+  for(cname in names(object@code@config)) {
+    cat("  -", col_magenta(cname), "=", deparse(object@code@config[[cname]]),"\n")
   }
 })
 
@@ -727,14 +771,14 @@ setMethod("generate", "stantvafit", function(x, newdata, vars, seed = NULL) {
 
 #'@export
 setMethod("simulate", c(object = "stantvamodel"), function(object, nsim, data, params, seed = NULL) {
-  if(!isTRUE(object@config$simulate)) stop("StanTVA model must be compiled with `simulate` = TRUE in order to simulate responses!")
+  if(!isTRUE(object@code@config$simulate)) stop("StanTVA model must be compiled with `simulate` = TRUE in order to simulate responses!")
   generate(object, data, params[rep(seq_len(nrow(params)), nsim),,drop=FALSE], "Rsim", seed)$Rsim
 })
 
 
 #'@export
 setMethod("simulate", c(object = "stantvafit"), function(object, nsim, newdata, seed = NULL) {
-  if(!isTRUE(object@stanmodel@config$simulate)) stop("StanTVA model must be compiled with `simulate` = TRUE in order to simulate responses!")
+  if(!isTRUE(object@stanmodel@code@config$simulate)) stop("StanTVA model must be compiled with `simulate` = TRUE in order to simulate responses!")
   if(missing(newdata) || is.null(newdata)) {
     simulate(object = object@stanmodel, nsim = nsim, data = object@data, params = as.matrix(object), seed = seed)
   } else {
@@ -746,27 +790,39 @@ setMethod("simulate", c(object = "stantvafit"), function(object, nsim, newdata, 
 setGeneric("fit", function(object, ...) {})
 
 #'@export
-setMethod("fit", c(object="stantvamodel"), function(object, data, method = c("mle","sampling"), ...) {
-  object2 <- as(object, "stanmodel")
+setMethod("sampling", c(object = "stantvamodel"), function(object, data, ...) {
+  stopifnot(inherits(data, "tvadata"))
+  if(object@code@config$locations != data$locations) stop("Cannot fit a StanTVA model compiled for ",object@code@config$locations," location(s) to a data set with ",data$locations," location(s)!")
+  f <- callNextMethod()
+  f@stanmodel <- object
+  f <- as(f, "stantvafit")
+  f@data <- data
+  f
+})
+
+#'@export
+setMethod("optimizing", c(object = "stantvamodel"), function(object, data, ...) {
+  stopifnot(inherits(data, "tvadata"))
+  if(object@code@config$locations != data$locations) stop("Cannot fit a StanTVA model compiled for ",object@code@config$locations," location(s) to a data set with ",data$locations," location(s)!")
+  callNextMethod()
+})
+
+
+#'@export
+setMethod("fit", c(object="stantvamodel"), function(object, data, method = c("optimizing","sampling"), ...) {
   method <- match.arg(method)
-  if(method == "sampling") {
-    f <- sampling(object2, data, ...)
-    f@stanmodel <- object
-    f <- as(f, "stantvafit")
-    f@data <- data
-    f
-  } else if(method == "mle") optimizing(object2, data, ...) else stop("Unknown fitting method ", method, "!")
+  do.call(method, list(object = object, data = data, ...))
 })
 
 #'@export
 setMethod("logLik", "stantvamodel", function(object, data, params) {
-  if(!isTRUE(object@config$save_log_lik)) stop("StanTVA model must be compiled with `save_log_lik` = TRUE in order to use logLik()!")
+  if(!isTRUE(object@code@config$save_log_lik)) stop("StanTVA model must be compiled with `save_log_lik` = TRUE in order to use logLik()!")
   generate(object, data, params, "log_lik")$log_lik
 })
 
 #'@export
 setMethod("logLik", "stantvafit", function(object, newdata) {
-  if(!isTRUE(object@stanmodel@config$save_log_lik)) stop("StanTVA model must be compiled with `save_log_lik` = TRUE in order to use logLik()!")
+  if(!isTRUE(object@stanmodel@code@config$save_log_lik)) stop("StanTVA model must be compiled with `save_log_lik` = TRUE in order to use logLik()!")
   if(missing(newdata)) extract(object, "log_lik")$log_lik
   else {
     logLik(object@stanmodel, newdata, extract(object))
@@ -775,13 +831,13 @@ setMethod("logLik", "stantvafit", function(object, newdata) {
 
 #'@export
 setMethod("predict", "stantvamodel", function(object, data, params) {
-  if(!isTRUE(object@config$predict_scores)) stop("StanTVA model must be compiled with `predict_scores` = TRUE in order to predict scores!")
+  if(!isTRUE(object@code@config$predict_scores)) stop("StanTVA model must be compiled with `predict_scores` = TRUE in order to predict scores!")
   generate(object, data, params, "pred_scores")$pred_scores
 })
 
 #'@export
 setMethod("predict", "stantvafit", function(object, newdata) {
-  if(!isTRUE(object@stanmodel@config$predict_scores)) stop("StanTVA model must be compiled with `predict_scores` = TRUE in order to predict scores!")
+  if(!isTRUE(object@stanmodel@code@config$predict_scores)) stop("StanTVA model must be compiled with `predict_scores` = TRUE in order to predict scores!")
   if(missing(newdata)) extract(object, "pred_scores")$pred_scores
   else {
     predict(object@stanmodel, newdata, extract(object))
@@ -797,8 +853,7 @@ tva_report <- function(data) {
     score = as.integer(if(is.null(data$D)) rowSums(data$R == 1L & data$S == 1L) else rowSums(data$R == 1L & data$S == 1L & data$D == 0L)),
     n_items = as.integer(rowSums(data$S == 1L)),
     n_distractors = if(is.null(data$D)) integer(data$N) else as.integer(rowSums(data$D))
-  ) %>% mutate(n_targets = n_items - n_distractors)
+  ) %>% mutate(n_targets = n_items - n_distractors) %>% as("tvareport")
 }
-
 
 
