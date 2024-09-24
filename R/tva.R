@@ -8,6 +8,8 @@
 #'@importFrom tibble tibble
 #'
 
+
+
 #'@export
 stantva_path <- function() {
   file.path(find.package("RStanTVA"), "StanTVA")
@@ -91,6 +93,10 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
   K_mode <- match.arg(K_mode)
   w_mode <- match.arg(w_mode)
   type <- match.arg(type)
+
+  if(isTRUE(parallel) && rstan_options("threads_per_chain") <= 1L) {
+    warning("You requested a parallel model but you also need to configure RStan to run the model in parallel. Try `rstan_options(threads_per_chain = ...)` to set the appropriate number of parallel threads within each chain before compiling the model code! To use all available CPUs, try `rstan_options(threads_per_chain = parallel::detectCores())`.")
+  }
 
 
 
@@ -675,6 +681,9 @@ stantva_model <- function(..., stan_options = list()) {
   mc <- if(length(args) == 1 && inherits(args[[1]], "stantvacode")) args[[1]] else do.call(stantva_code, args)
   stan_options$model_code <- mc@code
   stan_options$isystem <- c(mc@include_path, stan_options$isystem)
+  if(isTRUE(mc@config$parallel) && rstan_options("threads_per_chain") <= 1L) {
+    stop("You requested a parallel model but RStan has not been configured to use multithreading! Try `rstan_options(threads_per_chain = ...)` to set the appropriate number of parallel threads within each chain before compiling the model code! To use all available CPUs, try `rstan_options(threads_per_chain = parallel::detectCores())`. If you do not wish to use multithreading, regenerate the model with `parallel = FALSE`!")
+  }
   m <- do.call(stan_model, stan_options) %>% as("stantvamodel")
   m@code <- mc
   m
