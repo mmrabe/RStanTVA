@@ -1,10 +1,11 @@
 #'@importFrom rstan extract stan_model sampling optimizing gqs
-#'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows tibble
+#'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows
 #'@importFrom tidyr pivot_longer pivot_wider
 #'@importFrom readr read_table write_tsv
 #'@importFrom methods formalArgs new as
 #'@importFrom stats na.omit
 #'@importFrom cli col_cyan col_magenta
+#'@importFrom tibble tibble
 #'
 
 #'@export
