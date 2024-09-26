@@ -782,7 +782,8 @@ setMethod("generate", "stantvafit", function(x, newdata, vars, seed = NULL) {
 #'@export
 setMethod("simulate", c(object = "stantvamodel"), function(object, nsim, data, params, seed = NULL) {
   if(!isTRUE(object@code@config$simulate)) stop("StanTVA model must be compiled with `simulate` = TRUE in order to simulate responses!")
-  generate(object, data, params[rep(seq_len(nrow(params)), nsim),,drop=FALSE], "Rsim", seed)$Rsim
+  data$R <- generate(object, data, params[rep(seq_len(nrow(params)), nsim),,drop=FALSE], "Rsim", seed)$Rsim
+  data
 })
 
 
