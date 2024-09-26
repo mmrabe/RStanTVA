@@ -2,10 +2,11 @@
 #'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows
 #'@importFrom tidyr pivot_longer pivot_wider
 #'@importFrom readr read_table write_tsv
-#'@importFrom methods formalArgs new as
+#'@importFrom methods formalArgs new as callNextMethod
 #'@importFrom stats na.omit
-#'@importFrom cli col_cyan col_magenta
+#'@importFrom cli col_cyan col_magenta col_grey ansi_strwrap
 #'@importFrom tibble tibble
+#'@importFrom utils citation str
 #'
 
 
