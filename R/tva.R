@@ -681,11 +681,6 @@ write_stantva_model <- function(model, file = stdout()) {
 #'@export
 tvadata <- setClass("tvadata", contains = "list")
 
-
-#'@importClassesFrom tibble tbl_df
-#'@export
-tvareport <- setClass("tvareport", contains = "tbl_df")
-
 #'@export
 setMethod("summary", "tvadata", function(object, ...) {
   tva_report(object, ...)
@@ -702,15 +697,6 @@ setMethod("show", "tvadata", function(object) {
 })
 
 
-#'@export
-setMethod("show", "tvareport", function(object) {
-  if(is.null(object$n_distractors)) {
-    cat(col_cyan("TVA"), "report for",nrow(object),"whole-report trial(s)\n")
-  } else {
-    cat(col_cyan("TVA"), "report for",nrow(object),"whole- and/or partial-report trial(s)\n")
-  }
-  callNextMethod()
-})
 
 
 
@@ -836,7 +822,7 @@ tva_report <- function(data) {
     score = as.integer(if(is.null(data$D)) rowSums(data$R == 1L & data$S == 1L) else rowSums(data$R == 1L & data$S == 1L & data$D == 0L)),
     n_items = as.integer(rowSums(data$S == 1L)),
     n_distractors = if(is.null(data$D)) integer(data$N) else as.integer(rowSums(data$D))
-  ) %>% mutate(n_targets = n_items - n_distractors) %>% as("tvareport")
+  ) %>% mutate(n_targets = n_items - n_distractors)
 }
 
 
