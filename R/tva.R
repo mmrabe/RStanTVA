@@ -77,7 +77,7 @@ setMethod("model_code", "stanmodel", function(object, type = c("stan","stan2","c
   if(type == "stan") object@code
   else if(type == "stan2") object@model_code
   else if(type == "cpp") object@model_cpp
-  else stop("Unknown type “", type,"”!")
+  else stop("Unknown type '", type,"'!")
 })
 
 #'@export
@@ -285,7 +285,7 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
       sprintf("w = rep_vector(1.0/%1$d.0, %1$d);", locations)
     )
   } else if(w_mode == "regions") {
-    if(length(regions) == 0) stop("You must define regions if w_mode = “regions”!")
+    if(length(regions) == 0) stop("You must define regions if w_mode = 'regions'!")
     add_param(name = "w", type = sprintf("vector[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype = "vector", dim = locations, transformed = TRUE)
     add_param(name = "b", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = substitute(~dirichlet(ones_vector(nR)), list(nR = length(regions))) )
     for(i in seq_along(regions)) {
