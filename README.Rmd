@@ -82,6 +82,14 @@ tva_model
 
 ```
 
+
+The generated Stan model looks like this:
+
+``` stan
+`r model_code(tva_model)@code`
+```
+
+
 Fit `tva_model` to the `tva_data` using maximum-likelihood estimation (MLE):
 
 ```{r example-fit}

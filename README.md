@@ -165,6 +165,104 @@ tva_model
 #>   - type = "stan"
 ```
 
+The generated Stan model looks like this:
+
+``` stan
+/*************************************************************************************
+ *  StanTVA
+ *  =======
+ *  This is a StanTVA program, generated with RStanTVA. Please cite as:
+ *  
+ *  Rabe M, Kyllingsbæk S (2024). _RStanTVA: TVA models in Stan using R and
+ *  StanTVA_. R package version 0.1.0.
+ *  
+ *  Configuration
+ *  =============
+ *  - locations = 6
+ *  - task = pr
+ *  - regions = list()
+ *  - C_mode = equal
+ *  - w_mode = locations
+ *  - t0_mode = gaussian
+ *  - K_mode = free
+ *  - parallel = FALSE
+ *  - save_log_lik = FALSE
+ *  - predict_scores = TRUE
+ *  - priors = FALSE
+ *  - sanity_checks = FALSE
+ *  - simulate = FALSE
+ *  - type = stan
+ *  
+ *  License
+ *  =======
+ *  StanTVA and RStanTVA are licensed under the GNU General Public License 3. For a
+ *  copy of the license agreement, see: https://www.gnu.org/licenses/gpl-3.0.html
+ *************************************************************************************/
+
+functions {
+    #include tva.stan
+    #include freeK.stan
+    #include gaussiant0.stan
+    vector calculate_v(int nS, array[] int S, array[] int D, vector w, vector s, real alpha) {
+        array[nS] int Ss = get_matches(S);
+        vector[6] w_alpha = w;
+        for(i in 1:6) if(D[i]) w_alpha[i] *= alpha;
+        vector[nS] v = s[Ss] .* w_alpha[Ss] / sum(w_alpha[Ss]);
+        for(i in 1:nS) if(v[i] < machine_precision()) v[i] = machine_precision();
+        return v/1000.0;
+    }
+    real log_lik_single(array[] int S, array[] int D, array[] int R, int nS, real T, vector w, vector s, real alpha, vector pK, real mu0, real sigma0) {
+        vector[nS] v = calculate_v(nS, S, D, w, s, alpha);
+        return tva_pr_log(R, S, D, T, [mu0, sigma0]', pK, v);
+    }
+    vector predict_score_single(array[] int S, array[] int D, int nS, real T, vector w, vector s, real alpha, vector pK, real mu0, real sigma0) {
+        vector[7] p;
+        for(i in 0:5) {
+            vector[nS] v = calculate_v(nS, S, D, w, s, alpha);
+            p[i+1] = exp(tva_pr_score_log(i, S, D, T, [mu0, sigma0]', pK, v));
+        }
+        p[7] = 1.0 - sum(p[:6]);
+        return p;
+    }
+}
+data {
+    int<lower=1> N;
+    array[N] real<lower=0> T;
+    array[N,6] int<lower=0,upper=1> S;
+    array[N,6] int<lower=0,upper=1> R;
+    array[N,6] int<lower=0,upper=1> D;
+}
+transformed data {
+    array[N] int nS;
+    for(i in 1:N) nS[i] = sum(S[i,]);
+    int total_nS = sum(nS);
+}
+parameters {
+    real<lower=machine_precision()> C;
+    simplex[6] w;
+    simplex[7] pK;
+    real mu0;
+    real<lower=machine_precision()> sigma0;
+    real<lower=machine_precision()> alpha;
+}
+transformed parameters {
+    vector[6] s;
+    s = rep_vector(C, 6);
+}
+model {
+    // likelihood (only if prior != 0)
+    if(target() != negative_infinity()) {
+        for(i in 1:N) target += log_lik_single(S[i], D[i], R[i], nS[i], T[i], w, s, alpha, pK, mu0, sigma0);
+    }
+}
+generated quantities {
+    real mK = 1 * pK[2] + 2 * pK[3] + 3 * pK[4] + 4 * pK[5] + 5 * pK[6] + 6 * pK[7];
+    // scores
+    matrix[N,7] pred_scores;
+    for(i in 1:N) pred_scores[i,] = to_row_vector(predict_score_single(S[i], D[i], nS[i], T[i], w, s, alpha, pK, mu0, sigma0));
+}
+```
+
 Fit `tva_model` to the `tva_data` using maximum-likelihood estimation
 (MLE):
 
@@ -172,17 +270,17 @@ Fit `tva_model` to the `tva_data` using maximum-likelihood estimation
 tva_fit <- optimizing(tva_model, tva_data)
 str(tva_fit)
 #> List of 4
-#>  $ par        : Named num [1:2824] 59.8138 0.2254 0.0574 0.182 0.0543 ...
+#>  $ par        : Named num [1:2824] 125.4605 0.2333 0.0457 0.1721 0.0431 ...
 #>   ..- attr(*, "names")= chr [1:2824] "C" "w[1]" "w[2]" "w[3]" ...
-#>  $ value      : num -544
+#>  $ value      : num -527
 #>  $ return_code: int 0
-#>  $ theta_tilde: num [1, 1:2824] 59.8138 0.2254 0.0574 0.182 0.0543 ...
+#>  $ theta_tilde: num [1, 1:2824] 125.4605 0.2333 0.0457 0.1721 0.0431 ...
 #>   ..- attr(*, "dimnames")=List of 2
 #>   .. ..$ : NULL
 #>   .. ..$ : chr [1:2824] "C" "w[1]" "w[2]" "w[3]" ...
 tva_fit$par[c("C","alpha","mu0","sigma0","mK")]
 #>          C      alpha        mu0     sigma0         mK 
-#> 59.8138042  1.7024483  9.4218619  0.1366502  4.4831927
+#> 125.460482   1.967497  40.408641  21.744538   4.257565
 ```
 
 Predicted scores vs. empirical scores:
