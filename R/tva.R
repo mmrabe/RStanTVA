@@ -386,16 +386,18 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
       "return v/1000.0;"
     )
     l_data <- union(c("S","R","T","nS"), v_data)
-    l_pars <- c("v",if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
+    l_pars <- c(v_pars, if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
     l_body <- c(
-      sprintf("return tva_wr_log(R, S, %s, %s, %s, v[:nS]);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+      sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+      sprintf("return tva_wr_log(R, S, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
     )
     p_data <- setdiff(l_data, "R")
     p_pars <- l_pars
     p_body <- c(
       sprintf("vector[%d] p;", locations+1),
       sprintf("for(i in 0:%d) {", locations-1L),
-      sprintf("\tp[i+1] = exp(tva_wr_score_log(i, S, %s, %s, %s, v[:nS]));", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args),
+      sprintf("\tvector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+      sprintf("\tp[i+1] = exp(tva_wr_score_log(i, S, %s, %s, %s, v));", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args),
       "}",
       sprintf("p[%d] = 1.0 - sum(p[:%d]);", locations+1, locations),
       "return p;"
@@ -403,7 +405,8 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
     s_data <- p_data
     s_pars <- p_pars
     s_body <- c(
-      sprintf("return tva_wr_rng(S, %s, %s, %s, v[:nS]);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+      sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+      sprintf("return tva_wr_rng(S, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
     )
   } else if(task == "pr") {
     v_data <- c("nS","S","D")
@@ -419,16 +422,18 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
     add_data(name = "D", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), ctype=sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
     add_param(name = "alpha", type = "real<lower=machine_precision()>", ctype = "real", rtype="real", prior = ~lognormal(-0.4,0.6))
     l_data <- union(c("S","D","R","T"), v_data)
-    l_pars <- c("v",if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
+    l_pars <- c(v_pars,if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
     l_body <- c(
-      sprintf("return tva_pr_log(R, S, D, %s, %s, %s, v[:nS]);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+      sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+      sprintf("return tva_pr_log(R, S, D, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
     )
     p_data <- setdiff(l_data, "R")
     p_pars <- l_pars
     p_body <- c(
       sprintf("vector[%d] p;", locations+1),
       sprintf("for(i in 0:%d) {", locations-1),
-      sprintf("\tp[i+1] = exp(tva_pr_score_log(i, S, D, %s, %s, %s, v[:nS]));", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args),
+      sprintf("\tvector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+      sprintf("\tp[i+1] = exp(tva_pr_score_log(i, S, D, %s, %s, %s, v));", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args),
       "}",
       sprintf("p[%d] = 1.0 - sum(p[:%d]);", locations+1, locations),
       "return p;"
@@ -436,43 +441,10 @@ stantva_code <- function(locations, task = c("wr","pr"), regions = list(), C_mod
     s_data <- p_data
     s_pars <- p_pars
     s_body <- c(
-      sprintf("return tva_pr_rng(S, D, %s, %s, %s, v[:nS]);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+      sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+      sprintf("return tva_pr_rng(S, D, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
     )
   }
-
-  add_param(name = "v", class="theta", type = sprintf("array[N] vector[%d]", locations), ctype = sprintf("vector[%d]", locations), rtype="vector", dim = locations, transformed = TRUE)
-
-  if(isTRUE(parallel)) {
-    nS_var <- datremap(names_back = "nS")
-    add_code(
-      "functions",
-      "vector calculate_v_rect(vector phi, vector theta, data array[] real x_r, data array[] int x_i) {",
-      paste0("\treturn calculate_v(", paste(c(datremap(names_back = v_data), parremap(v_pars)), collapse=", "),");"),
-      "}"
-    )
-    add_code(
-      "transformed parameters",
-      "{",
-      paste0("\t",parmap(v_pars)),
-      "\tvector[total_nS] v_vec = map_rect(calculate_v_rect, phi, theta, x_r, x_i);",
-      "\tint o = 1;",
-      "\tfor(i in 1:N) {",
-      "\t\tif(nS[i] > 0) v[i,:nS[i]] = v_vec[o:(o+nS[i]-1)];",
-      sprintf("\t\tif(nS[i] < %1$d) v[i,(nS[i]+1):] = rep_vector(0, %1$d - nS[i]);", locations),
-      "\t\to += nS[i];",
-      "\t}",
-      "}"
-    )
-  } else {
-    add_code(
-      "transformed parameters",
-      "for(i in 1:N) {",
-      paste0("\tv[i,:nS[i]] = calculate_v(", paste(c(datsig(names_back = v_data, types = FALSE, index = "i"), parsig(names_back = v_pars, types = FALSE, index = "i")), collapse=", "),");"),
-      sprintf("\tif(nS[i] < %1$d) v[i,(nS[i]+1):] = rep_vector(0.0, %1$d-nS[i]);", locations),
-      "}"
-    )
-  }
-
 
   add_code(
     "functions",
