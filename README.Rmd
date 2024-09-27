@@ -1,0 +1,110 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# RStanTVA
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+RStanTVA is an R package containing the StanTVA library and numerous convenience functions for generating, compiling, fitting, and analyzing (Stan)TVA models.
+
+## Installation
+
+You can install the development version of RStanTVA from [GitHub](https://github.com/mmrabe/RStanTVA) with:
+
+``` r
+remotes::install_github("mmrabe/RStanTVA")
+```
+
+## Example
+
+Load the R package:
+
+```{r example-load}
+library(RStanTVA)
+```
+
+Load example data from the parameter recovery study:
+
+```{r example-data}
+tva_file_name <- file.path(find.package("RStanTVA"), "extdata", "recovery", paste0("recovery_120.dat"))
+tva_data <- read_tva_data(tva_file_name)
+tva_data
+```
+
+Create a report and visualize the scores:
+
+```{r example-report}
+tva_data_report <- tva_report(tva_data)
+tva_data_report
+
+library(tidyverse)
+
+tva_data_report %>%
+  group_by(exposure) %>%
+  summarize(mean_score = mean(score)) %>%
+  ggplot(aes(exposure, mean_score)) +
+  theme_minimal() +
+  geom_point(size = 0.2) +
+  geom_line(linewidth = 0.2)
+  
+
+
+```
+
+Generate a StanTVA model for partial report of 6 display locations with Gaussian $t_0$ and a free $K$ distribution:
+
+```{r example-model}
+library(RStanTVA)
+
+tva_model <- stantva_model(
+  location = 6,
+  task = "pr",
+  w_mode = "locations",
+  t0_mode = "gaussian",
+  K_mode = "free",
+  predict = TRUE
+)
+
+tva_model
+
+```
+
+Fit `tva_model` to the `tva_data` using maximum-likelihood estimation (MLE):
+
+```{r example-fit}
+tva_fit <- optimizing(tva_model, tva_data)
+str(tva_fit)
+tva_fit$par[c("C","alpha","mu0","sigma0","mK")]
+```
+
+Predicted scores vs. empirical scores:
+
+```{r example-predict}
+tva_data_report %>% 
+  mutate(pred_score = tva_fit$par[sprintf("pred_scores[%d,2]",seq_len(n()))] + 2*tva_fit$par[sprintf("pred_scores[%d,3]",seq_len(n()))]+3*tva_fit$par[sprintf("pred_scores[%d,4]",seq_len(n()))]+4*tva_fit$par[sprintf("pred_scores[%d,5]",seq_len(n()))]+5*tva_fit$par[sprintf("pred_scores[%d,6]",seq_len(n()))]+6*tva_fit$par[sprintf("pred_scores[%d,7]",seq_len(n()))]) %>%
+  pivot_longer(c(score,pred_score), names_to = "type", values_to = "score") %>%
+  group_by(exposure,type) %>%
+  summarize(score = mean(score)) %>%
+  ggplot(aes(exposure, score, color = type, group = type)) +
+  theme_minimal() +
+  geom_point(size = 0.2) +
+  geom_line(linewidth = 0.2)
+  
+```
+
+
+
+
