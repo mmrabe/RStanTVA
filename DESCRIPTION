@@ -10,15 +10,18 @@ License: GPL (>= 3)
 Encoding: UTF-8
 Date: 2024-09-27
 Depends:
+    rstan,
+    R (>= 3.6)
+Imports:
     dplyr,
     readr,
-    rstan,
     tidyr,
     methods,
     utils,
     tibble,
     stats,
     cli,
-    R (>= 2.10)
+    lme4,
+    gtools
 LazyData: true
 RoxygenNote: 7.3.2

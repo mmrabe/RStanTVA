@@ -1,6 +1,6 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^.git
+(^|/).git$
 ^data-raw$
 ^LICENSE\.md$
 ^README\.Rmd$

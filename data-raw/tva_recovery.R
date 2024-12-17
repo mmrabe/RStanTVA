@@ -1,111 +1,167 @@
-## code to prepare `tva_recovery` dataset goes here
 
-
+library(MASS)
 library(tidyverse)
-library(TruncExpFam)
+library(Matrix)
 library(gtools)
 
-set.seed(349593)
-Nprior <- 100
-N <- 400
 
-max_nS <- 6L
+set.seed(12345)
 
+mu_log_C <- log(70)
+mu_log_C_highvslow <- log(120) - mu_log_C
+mu_log_alpha <- log(0.7)
+mu_log_alpha_highvslow <- 0
+mu_log_pK <- c(0,0,1,0.5)
+mu_log_pK_highvslow <- c(0, 0, 0, 0)
+mu_mu0 <- 30
+mu_mu0_highvslow <- 0
+mu_sigma0 <- 2.5
+mu_sigma0_highvslow <- 0
+mu_log_w <- rnorm(3, 0, 0.1)
+mu_log_w_highvslow <- c(0, 0, 0)
 
-conditions <- crossing(exposure = c(10,50,80,100,150,200,250,400,500,1000), nS = seq(2,max_nS,2), type = c("WR","PR"))
-
-
-tva_recovery <- bind_rows(
-  tibble(
-    t0_mode = "constant",
-    pK = rdirichlet(Nprior, rep(1, max_nS+1)),
-    mu0 = runif(Nprior, -100, 100),
-    sigma0 = NA_real_,
-    C = as.double(rtruncgamma(Nprior, 2, 0.02, a=1, b=200)),
-    w = rdirichlet(Nprior, rep(1, max_nS)),
-    alpha = runif(Nprior, 0, 2)
-  ),
-  tibble(
-    t0_mode = "gaussian",
-    pK = rdirichlet(Nprior, rep(1, max_nS+1)),
-    mu0 = runif(Nprior, -100, 100),
-    sigma0 = runif(Nprior, 0, 50),
-    C = as.double(rtruncgamma(Nprior, 2, 0.02, a=1, b=200)),
-    w = rdirichlet(Nprior, rep(1, max_nS)),
-    alpha = runif(Nprior, 0, 2)
-  )
+sd_subj <- c(
+  log_C_Intercept = 0.2,
+  log_C_condition = 0.05,
+  log_alpha_Intercept = 0.2,
+  log_alpha_condition = 0.05,
+  log_pK_Intercept1 = 0.2,
+  log_pK_condition1 = 0,
+  log_pK_Intercept2 = 0.2,
+  log_pK_condition2 = 0,
+  log_pK_Intercept3 = 0.2,
+  log_pK_condition3 = 0,
+  log_pK_Intercept4 = 0.2,
+  log_pK_condition4 = 0,
+  sigma0_Intercept = 0.2,
+  sigma0_condition = 0,
+  mu0_Intercept = 10,
+  mu0_condition = 0,
+  log_w_Intercept1 = 0.2,
+  log_w_condition1 = 0,
+  log_w_Intercept2 = 0.2,
+  log_w_condition2 = 0,
+  log_w_Intercept3 = 0.2,
+  log_w_condition3 = 0
 )
+
+cor_subj <- diag(length(sd_subj))
+dimnames(cor_subj) <- list(names(sd_subj), names(sd_subj))
+cor_subj["log_C_Intercept","log_C_condition"] <- -.2
+cor_subj["log_C_condition","log_C_Intercept"] <- -.2
+cor_subj["log_C_Intercept","log_alpha_Intercept"] <- -.3
+cor_subj["log_alpha_Intercept","log_C_Intercept"] <- -.3
+
+z_subj <- mvrnorm(50, rep(0, length(sd_subj)), cor_subj)
+
+subject_ranefs <- z_subj * matrix(sd_subj, nrow = nrow(z_subj), ncol = length(sd_subj), byrow = TRUE)
+
+
+tva_recovery <- crossing(
+  subject = seq_len(nrow(subject_ranefs)),
+  trial = 1:32,
+  bind_rows(
+    crossing(
+      T = c(10,50,100,200,300),
+      condition = factor(c("low","high")),
+      type = factor("WR")
+    ),
+    crossing(
+      T = c(50,100,200),
+      condition = factor(c("low","high")),
+      type = factor("PR")
+    )
+  )
+) %>% mutate(
+  S = matrix(1L, nrow = n(), ncol = 4),
+  D = matrix(0L, nrow = n(), ncol = 4),
+  R = matrix(NA_integer_, nrow = n(), ncol = 4)
+) %>% group_by(subject) %>% mutate(trial = seq_len(n()), true_values = tibble(t = matrix(NA_real_, n(), 6), v = matrix(NA_real_, n(), 6), t0 = NA_real_, K = NA_integer_))
+
+contrasts(tva_recovery$condition) <- contr.treatment(levels(tva_recovery$condition), base = match("low", levels(tva_recovery$condition)))
+
+subject_coefs <- crossing(
+  j = 1:50,
+  condition = unique(tva_recovery$condition)
+) %>%
+  mutate(
+    x_condition = contrasts(tva_recovery$condition)[condition,1],
+    C = exp((mu_log_C + subject_ranefs[j, "log_C_Intercept"]) + x_condition * (mu_log_C_highvslow + subject_ranefs[j, "log_C_condition"])),
+    alpha = exp((mu_log_alpha + subject_ranefs[j, "log_alpha_Intercept"]) + x_condition * (mu_log_alpha_highvslow + subject_ranefs[j, "log_alpha_condition"])),
+    w = vapply(1:3, function(i) exp((mu_log_w[i] + subject_ranefs[j, paste0("log_w_Intercept",i)]) + x_condition * (mu_log_w_highvslow[i] + subject_ranefs[j, paste0("log_w_condition",i)])), double(n())),
+    mu0 = (mu_mu0 + subject_ranefs[j, "mu0_Intercept"]) + x_condition * (mu_mu0_highvslow + subject_ranefs[j, "mu0_condition"]),
+    sigma0 = exp(mu_sigma0 + subject_ranefs[j, "sigma0_Intercept"]) + x_condition * (mu_sigma0_highvslow + subject_ranefs[j, "sigma0_condition"]),
+    pK = vapply(1:4, function(i) exp((mu_log_pK[i] + subject_ranefs[j, paste0("log_pK_Intercept",i)]) + x_condition * (mu_log_pK_highvslow[i] + subject_ranefs[j, paste0("log_pK_condition",i)])), double(n()))
+  ) %>%
+  rename(subject = j) %>%
+  dplyr::select(-x_condition) %>%
+  mutate(across(c("w","pK"), ~cbind(.x,1)/(rowSums(.x)+1)))
+
+
+tva_recovery$true_values <- bind_cols(tva_recovery$true_values, tva_recovery %>% dplyr::select(subject, condition) %>% left_join(subject_coefs, by = c("subject", "condition")) %>% ungroup() %>% dplyr::select(-subject,-condition))
 
 for(i in seq_len(nrow(tva_recovery))) {
 
-  trials <- bind_rows(lapply(seq_len(N), \(k) {
+  if(tva_recovery$type[i] == "PR") {
+    tva_recovery$D[i,] <- sample(c(0L,0L,1L,1L))
+  }
 
-    j <- sample.int(nrow(conditions), 1)
+  C <- tva_recovery$true_values$C[i]
+  alpha <- tva_recovery$true_values$alpha[i]
+  w <- tva_recovery$true_values$w[i,] * if_else(tva_recovery$D[i,] == 1L, alpha, 1)
+  mu0 <- tva_recovery$true_values$mu0[i]
+  sigma0 <- tva_recovery$true_values$sigma0[i]
+  pK <- tva_recovery$true_values$pK[i,]
 
-    # sample experimental exposure duration
-    exposure <- conditions$exposure[j]
-
-    # sample experimental stimuli
-    nS <- conditions$nS[j]
-    nD <- if(conditions$type[j]=="WR") 0L else nS %/% 2L
-    S <- logical(max_nS)
-    S[sample.int(max_nS, nS)] <- TRUE
-    D <- logical(max_nS)
-    D[which(S)[sample.int(nS, nD)]] <- TRUE
-
-    stopifnot(sum(S) == nS, sum(D) == nD, !any(D & !S))
-
-    # sample memory capacity
-    K <- sample.int(max_nS+1, 1, prob = tva_recovery$pK[i,])-1L
-
-    stopifnot(K <= max_nS)
-
-    # calculate theoretical processing rates
-    trial_w <- tva_recovery$w[i,S] * if_else(D[S], tva_recovery$alpha[i], 1)
-    trial_w <- trial_w/sum(trial_w)
-    v <- tva_recovery$C[i]/1000 * trial_w
-
-    # generate trial t0
-    t0 <- if(tva_recovery$t0_mode[i] == "constant") tva_recovery$mu0[i] else rnorm(1, tva_recovery$mu0[i], tva_recovery$sigma0[i])
-
-    # generate processing times
-    processing_times <- rexp(nS, v) + t0
-    #processing_times <- vapply(v, function(v) mod$functions$tva_t_rng(v/1000, c(mu, sigma)), double(1))
-
-    # items admitted to memory (R)
-    R <- logical(max_nS)
-    R[S] <- rank(processing_times) <= K & processing_times <= exposure & !D[S]
-
-    stopifnot(!any(R & !S), !any(R & D), sum(R) <= K)
-
-    tibble(
-      condition = j,
-      R = t(R) + 0L,
-      S = t(S) + 0L,
-      D = t(D) + 0L,
-      exposure = exposure
-    )
-  }))
-
-  f <- file(sprintf("inst/extdata/recovery/recovery_%d.dat", i), "w")
-  writeLines(as.character(N), f)
-
-  stimuli <- replicate(N, sample(LETTERS, max_nS))
-
-  Tstr <- vapply(seq_len(N), \(i) paste0(if_else(trials$S[i,] & !trials$D[i,], stimuli[,i], "0"), collapse=""), "")
-  Dstr <- vapply(seq_len(N), \(i) paste0(if_else(trials$S[i,] & trials$D[i,], stimuli[,i], "0"), collapse=""), "")
-  Rstr <- vapply(seq_len(N), \(i) if(any(trials$R[i,])) paste0(stimuli[as.logical(trials$R[i,]),i], collapse="") else "-", "")
-
-  writeLines(sprintf("%d\t%.0f\t%s\t%s\t%s", trials$condition, trials$exposure, Tstr, Dstr, Rstr), f)
-  close(f)
-
-  c(list(N=N,max_nS=max_nS), as.list(trials %>% select(-condition)))
-
-
+  Ss <- which(tva_recovery$S[i,] == 1L)
+  v <- C/1000 * w[Ss] / sum(w[Ss])
+  K <- sample.int(length(pK), 1, prob = pK) - 1L
+  t0 <- rnorm(1, mu0, sigma0)
+  processing_times <- rexp(length(v), v) + t0
+  Rs <- Ss[rank(processing_times) <= K & processing_times <= tva_recovery$T[i] & tva_recovery$D[i,] == 0L]
+  tva_recovery$R[i,] <- as.integer(seq_along(w) %in% Rs)
+  tva_recovery$true_values$t0[i] <- t0
+  tva_recovery$true_values$K[i] <- K
+  tva_recovery$true_values$v[i,] <- v[match(ncol(tva_recovery$S), Ss)]
+  tva_recovery$true_values$t[i,] <- processing_times[match(ncol(tva_recovery$S), Ss)]
 }
 
+names(sd_subj) <- c("C_Intercept", "C_conditionhigh", "alpha_Intercept", "alpha_conditionhigh", "pK_Intercept[1]", "pK_conditionhigh[1]", "pK_Intercept[2]", "pK_conditionhigh[2]", "pK_Intercept[3]", "pK_conditionhigh[3]", "pK_Intercept[4]", "pK_conditionhigh[4]", "sigma0_Intercept", "sigma0_conditionhigh", "mu0_Intercept", "mu0_conditionhigh", "w_Intercept[1]", "w_conditionhigh[1]", "w_Intercept[2]", "w_conditionhigh[2]", "w_Intercept[3]", "w_conditionhigh[3]")
+dimnames(cor_subj) <- list(names(sd_subj), names(sd_subj))
+colnames(z_subj) <- names(sd_subj)
+
+tva_recovery_true_params <- list(
+  b = c(
+    C_Intercept = mu_log_C,
+    C_conditionhigh = mu_log_C_highvslow,
+    alpha_Intercept = mu_log_alpha,
+    alpha_conditionhigh = mu_log_alpha_highvslow,
+    `pK_Intercept[1]` = mu_log_pK[1],
+    `pK_conditionhigh[1]` = mu_log_pK_highvslow[1],
+    `pK_Intercept[2]` = mu_log_pK[2],
+    `pK_conditionhigh[2]` = mu_log_pK_highvslow[2],
+    `pK_Intercept[3]` = mu_log_pK[3],
+    `pK_conditionhigh[3]` = mu_log_pK_highvslow[3],
+    `pK_Intercept[4]` = mu_log_pK[4],
+    `pK_conditionhigh[4]` = mu_log_pK_highvslow[4],
+    sigma0_Intercept = mu_sigma0,
+    sigma0_conditionhigh = mu_sigma0_highvslow,
+    mu0_Intercept = mu_mu0,
+    mu0_conditionhigh = mu_mu0_highvslow,
+    `w_Intercept[1]` = mu_log_w[1],
+    `w_conditionhigh[1]` = mu_log_w_highvslow[1],
+    `w_Intercept[2]` = mu_log_w[2],
+    `w_conditionhigh[2]` = mu_log_w_highvslow[2],
+    `w_Intercept[3]` = mu_log_w[3],
+    `w_conditionhigh[3]` = mu_log_w_highvslow[3]
+  ),
+  s_subject = sd_subj,
+  r_subject = cor_subj,
+  z_subject = z_subj,
+  coef_subject = subject_coefs
+)
 
 
 
 
-usethis::use_data(tva_recovery, overwrite = TRUE, compress = "xz")
+usethis::use_data(tva_recovery, tva_recovery_true_params, overwrite = TRUE, compress = "xz")
