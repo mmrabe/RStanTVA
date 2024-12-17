@@ -34,13 +34,13 @@ Load the R package:
 
 ```{r example-load}
 library(RStanTVA)
+library(tidyverse)
 ```
 
 Load example data from the parameter recovery study:
 
 ```{r example-data}
-tva_file_name <- file.path(find.package("RStanTVA"), "extdata", "recovery", paste0("recovery_120.dat"))
-tva_data <- read_tva_data(tva_file_name)
+tva_data <- tva_recovery %>% filter(subject == 20)
 tva_data
 ```
 
@@ -50,7 +50,6 @@ Create a report and visualize the scores:
 tva_data_report <- tva_report(tva_data)
 tva_data_report
 
-library(tidyverse)
 
 tva_data_report %>%
   group_by(exposure) %>%
@@ -70,12 +69,13 @@ Generate a StanTVA model for partial report of 6 display locations with Gaussian
 library(RStanTVA)
 
 tva_model <- stantva_model(
-  location = 6,
+  location = 4,
   task = "pr",
   w_mode = "locations",
   t0_mode = "gaussian",
   K_mode = "free",
-  predict = TRUE
+  sanity_checks = FALSE,
+  priors = FALSE
 )
 
 tva_model
@@ -86,7 +86,7 @@ tva_model
 The generated Stan model looks like this:
 
 ``` stan
-`r model_code(tva_model)@code`
+`r tva_model@code@code`
 ```
 
 
@@ -95,22 +95,7 @@ Fit `tva_model` to the `tva_data` using maximum-likelihood estimation (MLE):
 ```{r example-fit}
 tva_fit <- optimizing(tva_model, tva_data)
 str(tva_fit)
-tva_fit$par[c("C","alpha","mu0","sigma0","mK")]
-```
-
-Predicted scores vs. empirical scores:
-
-```{r example-predict}
-tva_data_report %>% 
-  mutate(pred_score = tva_fit$par[sprintf("pred_scores[%d,2]",seq_len(n()))] + 2*tva_fit$par[sprintf("pred_scores[%d,3]",seq_len(n()))]+3*tva_fit$par[sprintf("pred_scores[%d,4]",seq_len(n()))]+4*tva_fit$par[sprintf("pred_scores[%d,5]",seq_len(n()))]+5*tva_fit$par[sprintf("pred_scores[%d,6]",seq_len(n()))]+6*tva_fit$par[sprintf("pred_scores[%d,7]",seq_len(n()))]) %>%
-  pivot_longer(c(score,pred_score), names_to = "type", values_to = "score") %>%
-  group_by(exposure,type) %>%
-  summarize(score = mean(score)) %>%
-  ggplot(aes(exposure, score, color = type, group = type)) +
-  theme_minimal() +
-  geom_point(size = 0.2) +
-  geom_line(linewidth = 0.2)
-  
+tva_fit$par[c("C","alpha","mu0","sigma0")]
 ```
 
 
