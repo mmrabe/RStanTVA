@@ -102,9 +102,12 @@ setMethod("model_code", "stanfit", function(object, type) {
 ## add hierarchical stuff here
 
 prepare_data <- function(trials, model, require_outcome = TRUE) {
-  fs <- if(inherits(model, "stantvamodel")) model@code@config$formula else if(inherits(model, "stantvacode")) model@config$formula else stop("`model` must be a StanTVA model or StanTVA model code object!")
 
-  required_columns <- if(isFALSE(require_outcome)) c() else if(model@code@config$task == "wr") c("R","S","T") else if(model@code@config$task == "pr") c("R","S","D","T") else stop("Unsupported task ",sQuote(model@code@config$task),"!")
+  mc <- if(inherits(model, "stantvamodel")) model@code else if(inherits(model, "stantvacode")) model else stop("`model` must be a StanTVA model or StanTVA model code object!")
+
+  fs <- mc@config$formula
+
+  required_columns <- if(isFALSE(require_outcome)) c() else if(mc@config$task == "wr") c("R","S","T") else if(mc@config$task == "pr") c("R","S","D","T") else stop("Unsupported task ",sQuote(mc@config$task),"!")
 
   if(any(!required_columns %in% colnames(trials))) {
     stop("The supplied data must contain columns ",paste(sQuote(required_columns), collapse=", ")," but at least one is missing: ",paste(sQuote(setdiff(required_columns, colnames(trials))), collapse=", "))
@@ -148,20 +151,20 @@ prepare_data <- function(trials, model, require_outcome = TRUE) {
     ltrials[[paste0("M_",f_var)]] <- ncol(Cmatf)
     int_C <- which(attr(Cmatf, "assign") == 0L)
     ltrials[[paste0("int_",f_var)]] <- if(length(int_C) != 1L) 0L else int_C
-    for(j in seq_len(model@code@df[f_var])) {
+    for(j in seq_len(mc@df[f_var])) {
       ltrials$X <- cbind(ltrials$X, Cmatf)
-      ltrials[[if(model@code@df[f_var] == 1L) paste0("map_",f_var) else paste0("map_",f_var,"_",j)]] <- array((ncol(ltrials$X)-ncol(Cmatf)+1L):ncol(ltrials$X), dim = ncol(Cmatf))
+      ltrials[[if(mc@df[f_var] == 1L) paste0("map_",f_var) else paste0("map_",f_var,"_",j)]] <- array((ncol(ltrials$X)-ncol(Cmatf)+1L):ncol(ltrials$X), dim = ncol(Cmatf))
     }
 
     for(k in seq_len(nrow(pf$random[[i]]))) {
       rf <- pf$random[[i]]$factor_txt[k]
       Cmatr <- model.matrix(pf$random[[i]]$formula[[k]], trials)
       colnames(Cmatr) <- clean_name(colnames(Cmatr))
-      for(j in seq_len(model@code@df[f_var])) {
-        g <- if(model@code@df[f_var] == 1L || pf$random[[i]]$custom[k]) pf$random[[i]]$group[k] else paste0(pf$random[[i]]$group[k], "_", j)
+      for(j in seq_len(mc@df[f_var])) {
+        g <- if(mc@df[f_var] == 1L || pf$random[[i]]$custom[k]) pf$random[[i]]$group[k] else paste0(pf$random[[i]]$group[k], "_", j)
         ltrials[[paste0("M_",f_var,"_",g)]] <- ncol(Cmatr)
         ltrials[[paste0("Z_",g)]] <- cbind(ltrials[[paste0("Z_",g)]], Cmatr)
-        ltrials[[if(model@code@df[f_var] == 1L) paste0("map_",f_var,"_",g) else paste0("map_",f_var,"_",j,"_",g)]] <- array((ncol(ltrials[[paste0("Z_",g)]])-ncol(Cmatr)+1L):ncol(ltrials[[paste0("Z_",g)]]), dim = ncol(Cmatr))
+        ltrials[[if(mc@df[f_var] == 1L) paste0("map_",f_var,"_",g) else paste0("map_",f_var,"_",j,"_",g)]] <- array((ncol(ltrials[[paste0("Z_",g)]])-ncol(Cmatr)+1L):ncol(ltrials[[paste0("Z_",g)]]), dim = ncol(Cmatr))
       }
     }
   }
@@ -275,7 +278,7 @@ parse_formula <- function(f) {
 
 
 #'@export
-stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "gamma", "exponential"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = TRUE, sanity_checks = TRUE) {
+stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "gamma", "exponential"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = TRUE, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
 
   task <- match.arg(task)
   C_mode <- match.arg(C_mode)
@@ -707,7 +710,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     all_params <- hierarchical_config %>% rename(name = param) %>% mutate(dim = vapply(name, function(x) if(!is.null(parameters[[x]]$dim)) as.integer(parameters[[x]]$dim) else 1L, integer(1)), fdim = vapply(name, function(x) if(grepl("^simplex", parameters[[x]]$type)) as.integer(parameters[[x]]$dim)-1L else if(!is.null(parameters[[x]]$dim)) as.integer(parameters[[x]]$dim) else 1L, integer(1)))
     for(i in seq_len(nrow(all_params))) {
       if(all_params$dim[i] > 1L) {
-        is_custom <- all_params$random[[i]]$custom
+        is_custom <- !is.null(all_params$random[[i]]$custom) && all_params$random[[i]]$custom
         all_params$random[[i]] <- crossing(all_params$random[[i]], index = seq_len(all_params$fdim[i]))
         if(!is_custom) {
           all_params$random[[i]]$group <- sprintf("%s_%d", all_params$random[[i]]$group, all_params$random[[i]]$index)
@@ -825,7 +828,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   add_code(
     "functions",
     paste0("real log_lik_single(",paste(c(datsig(names_back = l_data), parsig(l_pars)), collapse = ", "),") {"),
-    paste0("\t", c("real log_lik;", l_body, sprintf("if(0 && log_lik == negative_infinity()) print(\"logLik(%s|%s) = -inf !\");", paste0(sprintf("%1$s=\",%1$s,\"",datsig(names_back = l_data, types = FALSE)),collapse=","), paste0(sprintf("%1$s=\",%1$s,\"",parsig(l_pars, types = FALSE)),collapse=",")), "return log_lik;")),
+    paste0("\t", c("real log_lik;", l_body, if(isTRUE(debug_neginf_loglik)) sprintf("if(log_lik == negative_infinity()) print(\"logLik(%s|%s) = -inf !\");", paste0(sprintf("%1$s=\",%1$s,\"",datsig(names_back = l_data, types = FALSE)),collapse=","), paste0(sprintf("%1$s=\",%1$s,\"",parsig(l_pars, types = FALSE)),collapse=",")), "return log_lik;")),
     "}"
   )
 
@@ -922,6 +925,9 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     )
   }
 
+  add_code("model", code_blocks$`transformed parameters`, prepend = TRUE)
+  code_blocks$`transformed parameters` <- NULL
+
   header <- c(
     "StanTVA",
     "=======",
@@ -954,15 +960,16 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
 
 
   df <- vapply(names(parameters), function(pn) if(grepl("^simplex\\b", parameters[[pn]]$type)) as.integer(parameters[[pn]]$dim-1L) else if(is.null(parameters[[pn]]$dim)) 1L else as.integer(parameters[[pn]]$dim), integer(1), USE.NAMES = TRUE)
+  dfdim <- vapply(names(parameters), function(pn) if(is.null(parameters[[pn]]$dim)) 1L else as.integer(parameters[[pn]]$dim), integer(1), USE.NAMES = TRUE)
   if(has_formulas) {
     attr(df, "formula_lhs") <- formula_lhs
     attr(df, "random_factors") <- all_random_factors
   }
-  new("stantvacode", code = ret, config = call_args_list, include_path = stantva_path(), df = df)
+  new("stantvacode", code = ret, config = call_args_list, include_path = stantva_path(), df = df, dim = dfdim)
 }
 
 #'@export
-stantvacode <- setClass("stantvacode", slots = c("code" = "character", "config" = "list", "include_path" = "character", "df" = "integer"))
+stantvacode <- setClass("stantvacode", slots = c("code" = "character", "config" = "list", "include_path" = "character", "df" = "integer", "dim" = "integer"))
 
 
 #'@export
@@ -971,6 +978,21 @@ setMethod("show", "stantvacode", function(object) {
   cat(object@code)
 })
 
+
+#'@export
+stancsv2stantvafit <- function(csv_file, data, model) {
+  mm <- if(inherits(model, "stantvamodel")) model else if(inherits(model, "stantvacode")) {
+    mm <- stan_model(model_code = model@code, isystem = stantva_path())
+    mm <- as(mm, "stantvamodel")
+    mm@code <- model
+    mm
+  } else stop("model must be stantvamodel or stantvacode!")
+  fx <- read_stan_csv(csv_file)
+  fx@stanmodel <- mm
+  fx <- as(fx, "stantvafit")
+  fx@data <- prepare_data(data, mm)
+  fx
+}
 
 #'@export
 stantva_model <- function(..., stan_options = list()) {
@@ -1060,18 +1082,20 @@ setMethod("generate", "stantvafit", function(x, newdata, vars, seed = NULL) {
 setGeneric("fit", function(object, ...) {})
 
 init_sampler <- function(model, pdata) {
-  function(num_chain = 1) {
+  mc <- if(inherits(model, "stantvamodel")) model@code else if(inherits(model, "stantvacode")) model else stop("`model` must be stantvamodel or stantvacode!")
+  function(chain_id = 1) {
     if(is.null(pdata$X)) {
       list()
     } else {
       ret <- list(b = double(ncol(pdata$X)))
       ret$b[colnames(pdata$X) == "Intercept"] <- as.array(runif(sum(colnames(pdata$X) == "Intercept"), -1, 1))
-      rfs <- bind_rows(bind_rows(lapply(model@code@config$formula, parse_formula))$random)
+      rfs <- bind_rows(bind_rows(lapply(mc@config$formula, parse_formula))$random)
       for(i in seq_len(nrow(rfs))) {
-        for(j in seq_len(model@code@df[rfs$param[i]])) {
-          rf <- if(model@code@df[rfs$param[i]] > 1L && !rfs$custom[i]) paste0(rfs$group[i], "_", j) else rfs$group[i]
+        for(j in seq_len(mc@df[rfs$param[i]])) {
+          rf <- if(mc@df[rfs$param[i]] > 1L && !rfs$custom[i]) paste0(rfs$group[i], "_", j) else rfs$group[i]
           ret[[paste0("r_",rf)]] <- diag(ncol(pdata[[paste0("Z_",rf)]]))
           ret[[paste0("s_",rf)]] <- as.array(if_else(colnames(pdata[[paste0("Z_",rf)]]) == "Intercept", 0.1, 0.01))
+          #message(paste0("N_", rfs$factor_txt[i]),",",paste0("Z_",rf))
           ret[[paste0("w_",rf)]] <- matrix(0, nrow = pdata[[paste0("N_", rfs$factor_txt[i])]], ncol = ncol(pdata[[paste0("Z_",rf)]]))
         }
       }
@@ -1080,18 +1104,23 @@ init_sampler <- function(model, pdata) {
   }
 }
 
+fix_cmdstanr_output <- function(fp) {
+  n <- 0L
+  lines <- readLines(fp)
+  save_warmup_lines <- grep("^\\s?#.*save_warmup", lines)
+  for(i in save_warmup_lines) {
+    lines[i] <- gsub("false|False|FALSE","0",lines[i])
+  }
+  writeLines(lines, fp)
+}
+
 #'@export
-setMethod("sampling", c(object = "stantvamodel"), function(object, data, pars = NULL, include = TRUE, chains = 4, init, ...) {
+setMethod("sampling", c(object = "stantvamodel"), function(object, data, pars = NULL, include = TRUE, chains = 4, init, ..., backend = c("rstan","cmdstanr","cmdstanr_mpi"), cpp_options = if(match.arg(backend) == "cmdstanr") list(stan_threads = object@code@config$parallel) else if(match.arg(backend) == "cmdstanr_mpi") list(CXX = "mpicxx", TBB_CXX_TYPE = "gcc", STAN_MPI = TRUE)) {
   if(object@code@config$locations != ncol(data$S)) stop("Cannot fit a StanTVA model compiled for ",object@code@config$locations," location(s) to a data set with ",ncol(data$S)," location(s)!")
   pdata <- prepare_data(data, object)
   formula_lhs <- attr(object@code@df, "formula_lhs")
   pars_to_exclude <- character()
-  if(isTRUE(object@code@config$parallel)) {
-    pars_to_exclude <- union(pars_to_exclude, c("theta","phi"))
-  }
-  if(!is.null(formula_lhs) && ncol(formula_lhs) > 0) {
-    pars_to_exclude <- union(pars_to_exclude, formula_lhs[2,])
-  }
+  backend <- match.arg(backend)
   if(length(pars) == 0 || (length(pars) == 1 && is.na(pars) && isTRUE(include))) {
     include <- FALSE
     pars <- pars_to_exclude
@@ -1105,15 +1134,33 @@ setMethod("sampling", c(object = "stantvamodel"), function(object, data, pars = 
   } else if(missing(init)) {
     init <- "random"
   }
-  if(length(pars) == 0 && isFALSE(include)) {
-    f <- callNextMethod(object, pdata, pars = NA, include = TRUE, init = init, chains = chains, ...)
-  } else {
-    f <- callNextMethod(object, pdata, pars = pars, include = include, init = init, chains = chains, ...)
+  if(backend == "rstan") {
+    if(length(pars) == 0 && isFALSE(include)) {
+      f <- callNextMethod(object, pdata, pars = NA, include = TRUE, init = init, chains = chains, ...)
+    } else {
+      f <- callNextMethod(object, pdata, pars = pars, include = include, init = init, chains = chains, ...)
+    }
+    f@stanmodel <- object
+    f <- as(f, "stantvafit")
+    f@data <- pdata
+    f
+  } else if(backend == "cmdstanr") {
+    m <- cmdstan_model(stan_file = write_stan_file(object@code@code), include_paths = stantva_path(), cpp_options = cpp_options)
+    x <- m$sample(pdata, chains = chains, init = init, threads_per_chain = rstan_options("threads_per_chain"), save_warmup = 0L, ...)
+    for(fp in x$output_files()) {
+      fix_cmdstanr_output(fp)
+    }
+    f <- stancsv2stantvafit(x$output_files(), d, object@code)
+    f
+  } else if(backend == "cmdstanr_mpi") {
+    m <- cmdstan_model(stan_file = write_stan_file(object@code@code), include_paths = stantva_path(), cpp_options = cpp_options)
+    x <- m$sample_mpi(pdata, chains = chains, init = init, save_warmup = 0L, ...)
+    for(fp in x$output_files()) {
+      fix_cmdstanr_output(fp)
+    }
+    f <- stancsv2stantvafit(x$output_files(), d, object@code)
+    f
   }
-  f@stanmodel <- object
-  f <- as(f, "stantvafit")
-  f@data <- pdata
-  f
 })
 
 #'@export
@@ -1267,8 +1314,8 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
     if(is.na(which_formula)) {
       p[[parname]]
     } else {
-
-      par_dim <- if(length(object@par_dims[[parname]]) > 1L) object@par_dims[[parname]][2L] else 1L
+      #### !!!!!!!!
+      par_dim <- object@stanmodel@code@dim[parname]
       par_df <- object@stanmodel@code@df[parname]
       r <- vapply(seq_len(par_dim), function(i) {
         m <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i) else paste0("map_",parname)]]
@@ -1283,6 +1330,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
             #print(which(J))
             #print(if(par_dim > 1) paste0("w_",rfs$group[k],"_",i) else paste0("w_",rfs$group[k]))
             Z <- newdata[[if(par_dim > 1) paste0("Z_",rfs$group[k],"_",i) else paste0("Z_",rfs$group[k])]][J,mrf,drop=FALSE]
+            #message(if(par_dim > 1) paste0("w_",rfs$group[k],"_",i) else paste0("w_",rfs$group[k]))
             w <- t(as.matrix(p[[if(par_dim > 1) paste0("w_",rfs$group[k],"_",i) else paste0("w_",rfs$group[k])]][,j,mrf]))
             W <- Z %*% w
             #print(if(par_dim > 1) paste0("Z_",rfs$group[k],"_",i) else paste0("Z_",rfs$group[k]))
@@ -1374,7 +1422,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
   if(nrow(fx) > 1) {
 
-    rfs <- fx$random %>% lapply(function(fxi) if(x@stanmodel@code@df[fxi$param] > 1L) crossing(fxi, index = seq_len(x@stanmodel@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows() %>% mutate(group = if_else(custom | is.na(index), group, paste0(group,"_",index)))
+    rfs <- fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && x@stanmodel@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(x@stanmodel@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(custom | is.na(index), group, paste0(group,"_",index)))
 
     random_factors_txt <- if(nrow(rfs) > 0L) unique(rfs$factor_txt) else character()
 
@@ -1420,12 +1468,14 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
       not_converged <- c(not_converged, rownames(s_summary)[s_summary[,"Rhat"] >= 1.05])
 
+
+      w_summary <- rstan::summary(x, sprintf("w_%s", gs), probs = double(0))$summary
+
+      not_converged <- c(not_converged, attr(par_names, "alias")[match(rownames(w_summary)[w_summary[,"Rhat"] >= 1.05], par_names)])
+
+
     }
 
-
-    w_summary <- rstan::summary(f, sprintf("w_%s", gs), probs = double(0))$summary
-
-    not_converged <- c(not_converged, attr(par_names, "alias")[match(rownames(w_summary)[w_summary[,"Rhat"] >= 1.05], par_names)])
 
   }
 
@@ -1447,7 +1497,7 @@ translate_names <- function(model, data, names) {
   if(nrow(fx) > 0L) {
     for(i in seq_len(nrow(fx))) {
       param <- fx$param[i]
-      if(model@code@df[param] == 1L) {
+      if(model@code@dim[param] == 1L) {
         m <- data[[sprintf("map_%s", param)]]
         new_ret[match(sprintf("b[%d]", m), ret)] <- paste0(fx$param[i], "_", colnames(data$X)[m])
       } else for(j in seq_len(model@code@df[param])) {
@@ -1455,10 +1505,10 @@ translate_names <- function(model, data, names) {
         new_ret[match(sprintf("b[%d]", m), ret)] <- paste0(fx$param[i], "_", colnames(data$X)[m], "[",j,"]")
       }
     }
-    rfs <- if(is.null(fx$random) || nrow(bind_rows(fx$random)) == 0) tibble() else fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && model@code@df[fxi$param] > 1L) crossing(fxi, index = seq_len(model@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows() %>% mutate(group = if_else(custom | is.na(index), group, paste0(group,"_",index)))
+    rfs <- if(is.null(fx$random) || nrow(bind_rows(fx$random)) == 0) tibble() else fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && model@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(model@code@dim[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(custom | is.na(index), group, paste0(group,"_",index)))
     for(i in seq_len(nrow(rfs))) {
       param <- rfs$param[i]
-      if(model@code@df[param] == 1L) {
+      if(model@code@dim[param] == 1L) {
         m <- data[[sprintf("map_%s_%s", rfs$param[i], rfs$group[i])]]
         new_ret[match(sprintf("s_%s[%d]", rfs$group[i], m), ret)] <- sprintf("sd(%s_%s_%s)", rfs$param[i], rfs$factor_txt[i], colnames(data[[paste0("Z_", rfs$group[i])]])[m])
         for(s in seq_len(data[[paste0("N_",rfs$factor_txt[i])]])) new_ret[match(sprintf("w_%s[%d,%d]", rfs$group[i], s, m), ret)] <- sprintf("%s_%s_%s[%d]", rfs$param[i], rfs$factor_txt[i], colnames(data[[paste0("Z_", rfs$group[i])]])[m], s)
@@ -1475,7 +1525,7 @@ translate_names <- function(model, data, names) {
       pnames <- character(length(cnames))
       for(i in seq_along(pars)) {
         param <- pars[i]
-        if(model@code@df[param] == 1L) {
+        if(model@code@dim[param] == 1L) {
           m <- data[[sprintf("map_%s_%s", pars[i], g)]]
           pnames[as.vector(m)] <- param
         } else for(j in seq_len(model@code@df[param])) {

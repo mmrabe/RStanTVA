@@ -2,6 +2,7 @@
 
 export(list2stantvafit)
 export(read_tva_data)
+export(stancsv2stantvafit)
 export(stantva_code)
 export(stantva_model)
 export(stantva_path)
