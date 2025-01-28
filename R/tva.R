@@ -6,7 +6,7 @@
 #'@importFrom stats na.omit as.formula model.matrix pnorm runif terms
 #'@importFrom cli col_cyan col_magenta col_grey col_blue ansi_strwrap style_underline style_bold
 #'@importFrom tibble tibble
-#'@importFrom utils citation str combn
+#'@importFrom utils citation str combn packageName packageVersion
 #'@importFrom lme4 findbars subbars fixef ranef nobars
 #'@importFrom gtools inv.logit
 #'@importFrom cmdstanr cmdstan_model write_stan_file
@@ -35,7 +35,7 @@ barnames <- function(exprs) {
 
 #'@export
 stantva_path <- function() {
-  file.path(find.package("RStanTVA"), "StanTVA")
+  file.path(find.package(packageName()), "StanTVA")
 }
 
 #'@export
@@ -931,9 +931,9 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   header <- c(
     "StanTVA",
     "=======",
-    "This is a StanTVA program, generated with RStanTVA. Please cite as:",
+    sprintf("This is a StanTVA program, generated with %s (v%s) Please cite as:", packageName(), packageVersion(packageName())),
     "",
-    strsplit(format(citation("RStanTVA"), style="text"),"\n")[[1]],
+    strsplit(format(citation(packageName()), style="text"),"\n")[[1]],
     "",
     "Configuration",
     "=============",
@@ -941,7 +941,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     "",
     "License",
     "=======",
-    "StanTVA and RStanTVA are licensed under the GNU General Public License 3. For a copy of the license agreement, see: https://www.gnu.org/licenses/gpl-3.0.html"
+    "This program is licensed under the GNU General Public License 3. For a copy of the license agreement, see: https://www.gnu.org/licenses/gpl-3.0.html"
   ) %>% ansi_strwrap(width = 80L)
 
 
@@ -965,11 +965,12 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     attr(df, "formula_lhs") <- formula_lhs
     attr(df, "random_factors") <- all_random_factors
   }
-  new("stantvacode", code = ret, config = call_args_list, include_path = stantva_path(), df = df, dim = dfdim)
+  new("stantvacode", code = ret, config = call_args_list, include_path = stantva_path(), df = df, dim = dfdim, version = packageVersion(packageName()))
 }
 
+
 #'@export
-stantvacode <- setClass("stantvacode", slots = c("code" = "character", "config" = "list", "include_path" = "character", "df" = "integer", "dim" = "integer"))
+stantvacode <- setClass("stantvacode", slots = c("code" = "character", "config" = "list", "include_path" = "character", "df" = "integer", "dim" = "integer", "version" = "ANY"))
 
 
 #'@export
