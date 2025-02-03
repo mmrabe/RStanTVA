@@ -38,7 +38,7 @@ stantva_path <- function() {
 }
 
 #'@export
-read_tva_data <- function(file, ...) {
+read_tva_data <- function(file, set = LETTERS, ...) {
   if(inherits(file, "connection")) f <- file
   else f <- base::file(file, "rb")
   n <- as.integer(readLines(f, n = 1))
@@ -51,8 +51,10 @@ read_tva_data <- function(file, ...) {
     S = (!is.na(targets) | !is.na(distractors))+0L,
     D = (!is.na(distractors) )+ 0L,
     R = t(vapply(seq_len(n()), function(i) targets[i,] %in% report[[i]] | distractors[i,] %in% report[[i]], logical(ncol(targets)))) + 0L,
-    items = t(vapply(seq_len(n()), function(i) if_else(is.na(targets[i,]), distractors[i,], targets[i,]), character(ncol(targets))))
-  ) %>% select(condition, S, D, items, T = exposure, R) %>% as("tvadata")
+    items = t(vapply(seq_len(n()), function(i) if_else(is.na(targets[i,]), distractors[i,], targets[i,]), character(ncol(targets)))),
+    E = vapply(seq_len(n()), function(i) sum(!report[[i]] %in% items[i,]), integer(1)),
+    I = length(set)
+  ) %>% select(condition, items, report, S, D, T = exposure, R, E, I) %>% as("tvadata")
 }
 
 
