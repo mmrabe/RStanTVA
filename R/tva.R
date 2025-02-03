@@ -109,6 +109,8 @@ prepare_data <- function(trials, model, require_outcome = TRUE) {
   fs <- mc@config$formula
 
   required_columns <- if(isFALSE(require_outcome)) c() else if(mc@config$task == "wr") c("R","S","T") else if(mc@config$task == "pr") c("R","S","D","T") else stop("Unsupported task ",sQuote(mc@config$task),"!")
+  if(isTRUE(mc@config$allow_guessing)) required_columns <- c(required_columns, "E", "I")
+
 
   if(any(!required_columns %in% colnames(trials))) {
     stop("The supplied data must contain columns ",paste(sQuote(required_columns), collapse=", ")," but at least one is missing: ",paste(sQuote(setdiff(required_columns, colnames(trials))), collapse=", "))
