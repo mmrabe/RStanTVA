@@ -22,7 +22,6 @@ Imports:
     stats,
     cli,
     lme4,
-    gtools,
     cmdstanr
 LazyData: true
 RoxygenNote: 7.3.2

@@ -8,7 +8,6 @@
 #'@importFrom tibble tibble
 #'@importFrom utils citation str combn packageName packageVersion
 #'@importFrom lme4 findbars subbars fixef ranef nobars
-#'@importFrom gtools inv.logit
 #'@importFrom cmdstanr cmdstan_model write_stan_file
 #'
 
@@ -218,9 +217,9 @@ parse_formula <- function(f) {
       inverse_link <- exp
       stan_inverse_link <- "exp(%s)"
     } else if(link_name == "logit") {
-      link <- logit
+      link <- qlogis
       stan_link <- "logit(%s)"
-      inverse_link <- inv.logit
+      inverse_link <- plogis
       stan_inverse_link <- "inv_logit(%s)"
     } else if(link_name == "probit") {
       link <- qnorm
@@ -228,14 +227,14 @@ parse_formula <- function(f) {
       inverse_link <- pnorm
       stan_inverse_link <- "Phi(%s)"
     } else if(link_name == "scaled_logit" && length(args) == 2L) {
-      link <- function(x) logit((x-args[[1]])/(args[[2]]-args[[1]]))
+      link <- function(x) qlogis((x-args[[1]])/(args[[2]]-args[[1]]))
       stan_link <- sprintf("logit((%%s-%1$g)/(%2$g-%1$g))", args[[1]], args[[2]])
-      inverse_link <- function(x) args[[1]]+(args[[2]]-args[[1]])*inv.logit(x)
+      inverse_link <- function(x) args[[1]]+(args[[2]]-args[[1]])*plogis(x)
       stan_inverse_link <- sprintf("%1$g+(%2$g-%1$g)*inv_logit(%%s)", args[[1]], args[[2]])
     } else if(link_name == "scaled_logit" && length(args) == 1L) {
-      link <- function(x) logit(x/args[[2]])
+      link <- function(x) qlogis(x/args[[2]])
       stan_link <- sprintf("logit(%%s/%g)", args[[1]])
-      inverse_link <- function(x) args[[2]]*inv.logit(x)
+      inverse_link <- function(x) args[[2]]*plogis(x)
       stan_inverse_link <- sprintf("%g*inv_logit(%%s)", args[[1]])
     } else if(link_name == "scaled_probit" && length(args) == 2L) {
       link <- function(x) qnorm((x-args[[1]])/(args[[2]]-args[[1]]))
