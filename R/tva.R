@@ -178,7 +178,7 @@ prepare_data <- function(trials, model, require_outcome = TRUE) {
 clean_name <- function(str) gsub("(^_+)|(_+$)$","",gsub("[^a-zA-Z0-9]+","_",str))
 
 
-nested_parameter <- function(param, transform, type = "real", dim = 1L, prior_fixed_intercept = NULL) {
+nested_parameter <- function(param, transform, type = "real", dim = 1L, prior_fixed_intercept = NULL, prior_fixed_slope = ~normal(0, 1)) {
   ret <- list(
     target = param,
     is_simplex = grepl("^simplex\\b", type),
@@ -188,10 +188,29 @@ nested_parameter <- function(param, transform, type = "real", dim = 1L, prior_fi
   )
   ret$fdim <- if(ret$is_simplex) dim - 1L else dim
 
-  if(!is.null(prior_fixed_intercept)) {
+  if(!is.null(prior_fixed_intercept) && !is.null(prior_fixed_slope)) {
+    ret$prior <- c(
+      sprintf("if(int_%1$s) {", param),
+      sprintf("\t%2$s ~ %1$s;", as.character(as.expression(rhs(prior_fixed_slope))), if(dim == 1L) sprintf("b[map_%1$s[:(int_%1$s-1)]]", param) else sprintf("b[map_%1$s_%2$d[:(int_%1$s-1)]]", param, seq_len(ret$fdim))),
+      sprintf("\t%2$s ~ %1$s;", as.character(as.expression(rhs(prior_fixed_slope))), if(dim == 1L) sprintf("b[map_%1$s[(int_%1$s+1):]]", param) else sprintf("b[map_%1$s_%2$d[(int_%1$s+1):]]", param, seq_len(ret$fdim))),
+      sprintf("\t%2$s ~ %1$s;", as.character(as.expression(rhs(prior_fixed_intercept))), sprintf(transform, if(dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", param) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", param, seq_len(ret$fdim)))),
+      "} else {",
+      sprintf("\t%2$s ~ %1$s;", as.character(as.expression(rhs(prior_fixed_slope))), if(dim == 1L) sprintf("b[map_%1$s]", param) else sprintf("b[map_%1$s_%2$d]", param, seq_len(ret$fdim))),
+      "}"
+    )
+  } else if(!is.null(prior_fixed_intercept)) {
     ret$prior <- c(
       sprintf("if(int_%1$s) {", param),
       sprintf("\t%2$s ~ %1$s;", as.character(as.expression(rhs(prior_fixed_intercept))), sprintf(transform, if(dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", param) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", param, seq_len(ret$fdim)))),
+      "}"
+    )
+  } else if(!is.null(prior_fixed_slope)) {
+    ret$prior <- c(
+      sprintf("if(int_%1$s) {", param),
+      sprintf("\t%2$s ~ %1$s;", as.character(as.expression(rhs(prior_fixed_slope))), if(dim == 1L) sprintf("b[map_%1$s[:(int_%1$s-1)]]", param) else sprintf("b[map_%1$s_%2$d[:(int_%1$s-1)]]", param, seq_len(ret$fdim))),
+      sprintf("\t%2$s ~ %1$s;", as.character(as.expression(rhs(prior_fixed_slope))), if(dim == 1L) sprintf("b[map_%1$s[(int_%1$s+1):]]", param) else sprintf("b[map_%1$s_%2$d[(int_%1$s+1):]]", param, seq_len(ret$fdim))),
+      "} else {",
+      sprintf("\t%2$s ~ %1$s;", as.character(as.expression(rhs(prior_fixed_slope))), if(dim == 1L) sprintf("b[map_%1$s]", param) else sprintf("b[map_%1$s_%2$d]", param, seq_len(ret$fdim))),
       "}"
     )
   }
@@ -281,7 +300,7 @@ parse_formula <- function(f) {
 
 
 #'@export
-stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "gamma", "exponential"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = TRUE, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
+stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "gamma", "exponential"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), allow_guessing = FALSE, parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = TRUE, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
 
   task <- match.arg(task)
   C_mode <- match.arg(C_mode)
@@ -291,8 +310,8 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
 
   hierarchical_config <- bind_rows(lapply(formula, parse_formula))
 
-  prior_random_corr <- ~lkj_corr(1)
-  prior_random_sd <- ~std_normal()
+  prior_random_corr <- ~lkj_corr(3)
+  prior_random_sd <- ~normal(0,0.5)
 
   includeFile <- function(f) sprintf("#include %s", f)
 
@@ -313,6 +332,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     `transformed data` = character(0),
     `parameters` = character(0),
     `transformed parameters` = character(0),
+    `transformed parameters 2` = character(0),
     `model` = character(0),
     `generated quantities` = character(0)
   )
@@ -539,7 +559,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   } else if(w_mode == "locations") {
     w_pars <- "w"
     w_body <- NULL
-    add_param(name = "w", type = sprintf("simplex[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype ="vector", dim = locations)
+    add_param(name = "w", type = sprintf("simplex[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype ="vector", dim = locations, prior = ~lognormal(0,0.5))
     for(i in seq_along(regions)) {
       #add_code(
       #  "generated quantities",
@@ -555,7 +575,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     K_args <- "[K]'"
   } else if(K_mode == "free") {
     add_code("functions", includeFile("freeK.stan"))
-    add_param(name = "pK", class = c("phi","K"), type = sprintf("simplex[%d]", locations+1L), ctype=sprintf("vector[%d]", locations+1L), rtype="vector", dim = locations+1L)
+    add_param(name = "pK", class = c("phi","K"), type = sprintf("simplex[%d]", locations+1L), ctype=sprintf("vector[%d]", locations+1L), rtype="vector", dim = locations+1L, prior = ~lognormal(0,0.5))
     #add_code("generated quantities", paste0("real mK = ",paste(sprintf("%d * pK[%d]", seq_len(locations), seq_len(locations)+1L), collapse=" + "),";"));
     K_args <- "pK"
   } else if(K_mode == "binomial") {
@@ -622,6 +642,12 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   add_data(name = "S", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), ctype = sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
   add_data(name = "R", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), ctype = sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
 
+  if(allow_guessing) {
+    add_data(name = "E", class="x_i", type = "array[N] int<lower=0>", ctype = "int", rtype="int")
+    add_data(name = "I", class="x_i", type = "array[N] int<lower=0>", ctype = "int", rtype="int")
+    add_param(name = "g", class = "phi", type = "real<lower=machine_precision(),upper=1.0-machine_precision()>", ctype="real", rtype="real", prior = ~beta(2,20))
+  }
+
 
   if(task == "wr") {
     v_data <- c("nS","S")
@@ -636,10 +662,19 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     )
     l_data <- union(c("S","R","T","nS"), v_data)
     l_pars <- c(v_pars, if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
-    l_body <- c(
-      sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
-      sprintf("log_lik = tva_wr_log(R, S, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
-    )
+    if(allow_guessing) {
+      l_pars <- c(l_pars, "g")
+      l_data <- c(l_data, "E", "I")
+      l_body <- c(
+        sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+        sprintf("log_lik = tva_wrg_log(R, S, %s, %s, %s, v, g, E, I);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+      )
+    } else {
+      l_body <- c(
+        sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+        sprintf("log_lik = tva_wr_log(R, S, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+      )
+    }
     p_data <- setdiff(l_data, "R")
     p_pars <- l_pars
     p_body <- c(
@@ -674,10 +709,19 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     add_param(name = "alpha", type = "real<lower=machine_precision()>", ctype = "real", rtype="real", prior = ~lognormal(-0.4,0.6))
     l_data <- union(c("S","D","R","T"), v_data)
     l_pars <- c(v_pars,if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
-    l_body <- c(
-      sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
-      sprintf("log_lik = tva_pr_log(R, S, D, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
-    )
+    if(allow_guessing) {
+      l_pars <- c(l_pars, "g")
+      l_data <- c(l_data, "E", "I")
+      l_body <- c(
+        sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+        sprintf("log_lik = tva_prg_log(R, S, D, %s, %s, %s, v, g, E, I);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+      )
+    } else {
+      l_body <- c(
+        sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+        sprintf("log_lik = tva_pr_log(R, S, D, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+      )
+    }
     p_data <- setdiff(l_data, "R")
     p_pars <- l_pars
     p_body <- c(
@@ -694,6 +738,15 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     s_body <- c(
       sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
       sprintf("return tva_pr_rng(S, D, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+    )
+  }
+
+  if(isTRUE(debug_neginf_loglik)) {
+    l_data <- c(l_data, "trial_no")
+    add_data(name = "trial_no", class="x_i", type = "array[N] int", ctype="int", rtype="int", dim = 1, transformed = TRUE)
+    add_code(
+      "transformed data",
+      "trial_no = linspaced_int_array(N, 1, N);"
     )
   }
 
@@ -724,12 +777,17 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     }
     all_random_effects <- bind_rows(tibble(param = character(), group=character(),factor_txt=character()), all_params$random)
     all_random_factors <- unique(all_random_effects$factor_txt)
+    if(isTRUE(debug_neginf_loglik)) {
+      l_data <- c(l_data, clean_name(all_random_factors))
+    }
     all_random_params <- all_random_effects %>% group_by(group, factor_txt) %>% summarize(dim = sum(all_params$dim[match(param, all_params$name)]), fdim = sum(all_params$fdim[match(param, all_params$name)]), M_var = paste(sprintf("M_%s_%s", param, group), collapse = "+"))
     M_var <- paste(if_else(all_params$fdim!=1L,sprintf("%d*M_%s", all_params$fdim, all_params$name),sprintf("M_%s", all_params$name)), collapse = "+")
+    for(rf in clean_name(all_random_factors)) {
+      add_data(name = sprintf("N_%s", rf), type = "int<lower=1,upper=N>", ctype="int", rtype="int", dim = 1)
+      add_data(name = rf, class="x_i", type = sprintf("array[N] int<lower=1,upper=N_%1$s>", rf), ctype="int", rtype="int", dim = 1)
+    }
     add_code(
       "data",
-      sprintf("int<lower=1,upper=N> N_%s;", clean_name(all_random_factors)),
-      sprintf("array[N] int<lower=1,upper=N_%1$s> %1$s;", clean_name(all_random_factors)),
       sprintf("int<lower=0> M_%s;", all_params$name),
       unique(sprintf("int<lower=0> M_%s_%s;", all_random_effects$param, all_random_effects$group)),
       sprintf("int<lower=0,upper=M_%1$s> int_%1$s;", all_params$name),
@@ -761,9 +819,9 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
       "transformed parameters",
       unlist(lapply(seq_len(nrow(all_params)), function(i) {
         if(all_params$dim[i] == 1) {
-          sprintf("vector[N] %s;", all_params$name[i])
+          sprintf("vector%2$s[N] %1$s;", all_params$name[i], gsub("^[^<>]*(<.*>)?[^<>]*$","\\1",parameters[[all_params$name[i]]]$type))
         } else {
-          sprintf("matrix[N,%2$d] %1$s;", all_params$name[i], all_params$dim[i])
+          sprintf("matrix%3$s[N,%2$d] %1$s;", all_params$name[i], all_params$dim[i], gsub("^[^<>]*(<.*>)?[^<>]*$","\\1",parameters[[all_params$name[i]]]$type))
         }
       })),
       "{",
@@ -800,7 +858,14 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
           unlist(lapply(which(all_params$fdim < all_params$dim), function(i) c(sprintf("%1$s[,%2$d] = 1.0 / (1.0 + %3$s);", all_params$name[i], all_params$dim[i], paste(sprintf("%s[,%d]", all_params$name[i], seq_len(all_params$fdim[i])), collapse = " + ")), sprintf("%1$s[,%3$d] .*= %1$s[,%2$d];", all_params$name[i], all_params$dim[i], seq_len(all_params$fdim[i])))))
         )
       ),
-      "}"
+      "}",
+      unlist(lapply(seq_len(nrow(all_params)), function(i) {
+        if(all_params$dim[i] == 1) {
+          sprintf("for(i in 1:N) if(is_nan(%1$s[i]) || is_inf(%1$s[i])) reject(\"Rejecting proposal because %1$s[\",i,\"] = \",%1$s[i],\" !\");", all_params$name[i])
+        } else {
+          sprintf("for(i in 1:N) for(j in 1:cols(%1$s)) if(is_nan(%1$s[i,j]) || is_inf(%1$s[i,j])) reject(\"Rejecting proposal because %1$s[\",i,\",\",j,\"] = \",%1$s[i,j],\" !\");", all_params$name[i])
+        }
+      }))
     )
     add_code(
       "transformed data",
@@ -879,11 +944,8 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
       "transformed data",
       datmap()
     )
-  }
-
-  if(isTRUE(parallel)) {
     add_code(
-      "transformed parameters",
+      "transformed parameters 2",
       parmap(l_pars)
     )
   }
@@ -906,11 +968,14 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
       "generated quantities",
       "// likelihood",
       "vector[N] log_lik;",
+      "{",
+      paste0("\t", code_blocks$`transformed parameters 2`),
       if(isTRUE(parallel)) {
         paste0("\tlog_lik = map_rect(log_lik_rect, phi, theta, x_r, x_i);")
       } else {
-        paste0("for(i in 1:N) log_lik[i] = log_lik_single(",paste(c(datsig(names_back = l_data, types = FALSE, index = "i"), parsig(l_pars, types = FALSE, index = "i")),collapse=", "),");")
-      }
+        paste0("\tfor(i in 1:N) log_lik[i] = log_lik_single(",paste(c(datsig(names_back = l_data, types = FALSE, index = "i"), parsig(l_pars, types = FALSE, index = "i")),collapse=", "),");")
+      },
+      "}"
     )
   }
 
@@ -928,8 +993,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     )
   }
 
-  add_code("model", code_blocks$`transformed parameters`, prepend = TRUE)
-  code_blocks$`transformed parameters` <- NULL
+  add_code("model", code_blocks$`transformed parameters 2`, prepend = TRUE)
 
   header <- c(
     "StanTVA",
@@ -947,6 +1011,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     "This program is licensed under the GNU General Public License 3. For a copy of the license agreement, see: https://www.gnu.org/licenses/gpl-3.0.html"
   ) %>% ansi_strwrap(width = 80L)
 
+  code_blocks$`transformed parameters 2` <- NULL
 
   ret <- paste(
     c(
