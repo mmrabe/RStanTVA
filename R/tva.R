@@ -1472,7 +1472,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
   fx <- bind_rows(lapply(x@stanmodel@code@config$formula, parse_formula))
 
 
-  global_pars <- setdiff(names(x@stanmodel@code@df), fx$param)
+  global_pars <- if(is.null(fx$param)) names(x@stanmodel@code@df) else setdiff(names(x@stanmodel@code@df), fx$param)
 
   not_converged <- character()
 
@@ -1480,7 +1480,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
     heading("Global parameters:")
 
-    g_summary <- rstan::summary(x, global_pars)$summary
+    g_summary <- rstan::summary(x, global_pars, use_cache = FALSE)$summary
 
     print(round(g_summary, digits_summary), max = prod(dim(g_summary)))
 
@@ -1489,13 +1489,13 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
   }
 
 
-  if(nrow(fx) > 1) {
+  if(nrow(fx) > 0L) {
 
     rfs <- fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && x@stanmodel@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(x@stanmodel@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(custom | is.na(index), group, paste0(group,"_",index)))
 
     random_factors_txt <- if(nrow(rfs) > 0L) unique(rfs$factor_txt) else character()
 
-    b_summary <- rstan::summary(x, "b")$summary
+    b_summary <- rstan::summary(x, "b", use_cache = FALSE)$summary
 
     rownames(b_summary) <- attr(par_names, "alias")[match(rownames(b_summary), par_names)]
 
@@ -1516,7 +1516,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
 
 
-      s_summary <- rstan::summary(x, paste0("s_", gs))$summary
+      s_summary <- rstan::summary(x, paste0("s_", gs), use_cache = FALSE)$summary
 
       rownames(s_summary) <- attr(par_names, "alias")[match(rownames(s_summary), par_names)]
 
@@ -1525,7 +1525,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
         M_rf <- x@par_dims[[sprintf("r_%s", g)]][1]
         if(M_rf >= 2L) {
           c_pars <- combn(M_rf, 2L)
-          r_summary <- rstan::summary(x, paste0("r_", g, "[", c_pars[1,], ",", c_pars[2,],"]"))$summary
+          r_summary <- rstan::summary(x, paste0("r_", g, "[", c_pars[1,], ",", c_pars[2,],"]"), use_cache = FALSE)$summary
           rownames(r_summary) <- attr(par_names, "alias")[match(rownames(r_summary), par_names)]
           s_summary <- rbind(s_summary, r_summary)
         }
@@ -1538,7 +1538,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
       not_converged <- c(not_converged, rownames(s_summary)[s_summary[,"Rhat"] >= 1.05])
 
 
-      w_summary <- rstan::summary(x, sprintf("w_%s", gs), probs = double(0))$summary
+      w_summary <- rstan::summary(x, sprintf("w_%s", gs), probs = double(0), use_cache = FALSE)$summary
 
       not_converged <- c(not_converged, attr(par_names, "alias")[match(rownames(w_summary)[w_summary[,"Rhat"] >= 1.05], par_names)])
 
