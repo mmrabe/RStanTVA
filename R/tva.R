@@ -519,7 +519,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
         })
       )
     )
-    add_param(name = "C", type = sprintf("vector<lower=machine_precision()>[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions))
+    add_param(name = "C", type = sprintf("vector<lower=machine_precision()>[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = substitute(~gamma(a, 0.035), list(a=3.5/length(regions))))
     for(i in seq_along(regions)) {
       #add_code(
       #  "generated quantities",
@@ -608,11 +608,11 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     add_code("functions", includeFile("constantt0.stan"))
     add_data(name = "max_mu", type = "real", ctype = "real", rtype="real", transformed = TRUE)
     add_code("transformed data", "max_mu = max(T);", "for(i in 1:N) if(sum(R[i,]) && T[i] < max_mu) max_mu = T[i];")
-    add_param(name = "t0", class = c("phi"), type = "real<upper=max_mu>", ctype="real", rtype="real", prior = ~normal(20, 30))
+    add_param(name = "t0", class = c("phi"), type = "real<upper=max_mu>", ctype="real", rtype="real", prior = ~normal(20, 15))
   } else if(t0_mode == "gaussian") {
     add_code("functions", includeFile("gaussiant0.stan"))
-    add_param(name = "mu0", class = c("phi","t0"), type = "real", ctype="real", rtype="real", prior = ~normal(20, 30))
-    add_param(name = "sigma0", class = c("phi","t0"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", prior = ~gamma(2,0.08))
+    add_param(name = "mu0", class = c("phi","t0"), type = "real", ctype="real", rtype="real", prior = ~normal(20, 15))
+    add_param(name = "sigma0", class = c("phi","t0"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", prior = ~gamma(2,0.2))
     t0_args <- "[mu0, sigma0]'"
   } else if(t0_mode == "exponential") {
     # TODO implement default priors!
