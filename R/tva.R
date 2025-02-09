@@ -156,7 +156,7 @@ prepare_data <- function(trials, model, require_outcome = TRUE) {
     ltrials[[paste0("int_",f_var)]] <- if(length(int_C) != 1L) 0L else int_C
     for(j in seq_len(mc@df[f_var])) {
       ltrials$X <- cbind(ltrials$X, Cmatf)
-      ltrials[[if(mc@df[f_var] == 1L) paste0("map_",f_var) else paste0("map_",f_var,"_",j)]] <- array((ncol(ltrials$X)-ncol(Cmatf)+1L):ncol(ltrials$X), dim = ncol(Cmatf))
+      ltrials[[if(mc@dim[f_var] == 1L) paste0("map_",f_var) else paste0("map_",f_var,"_",j)]] <- array((ncol(ltrials$X)-ncol(Cmatf)+1L):ncol(ltrials$X), dim = ncol(Cmatf))
     }
 
     for(k in seq_len(nrow(pf$random[[i]]))) {
@@ -164,10 +164,10 @@ prepare_data <- function(trials, model, require_outcome = TRUE) {
       Cmatr <- model.matrix(pf$random[[i]]$formula[[k]], trials)
       colnames(Cmatr) <- clean_name(colnames(Cmatr))
       for(j in seq_len(mc@df[f_var])) {
-        g <- if(mc@df[f_var] == 1L || pf$random[[i]]$custom[k]) pf$random[[i]]$group[k] else paste0(pf$random[[i]]$group[k], "_", j)
+        g <- if(mc@dim[f_var] == 1L || pf$random[[i]]$custom[k]) pf$random[[i]]$group[k] else paste0(pf$random[[i]]$group[k], "_", j)
         ltrials[[paste0("M_",f_var,"_",g)]] <- ncol(Cmatr)
         ltrials[[paste0("Z_",g)]] <- cbind(ltrials[[paste0("Z_",g)]], Cmatr)
-        ltrials[[if(mc@df[f_var] == 1L) paste0("map_",f_var,"_",g) else paste0("map_",f_var,"_",j,"_",g)]] <- array((ncol(ltrials[[paste0("Z_",g)]])-ncol(Cmatr)+1L):ncol(ltrials[[paste0("Z_",g)]]), dim = ncol(Cmatr))
+        ltrials[[if(mc@dim[f_var] == 1L) paste0("map_",f_var,"_",g) else paste0("map_",f_var,"_",j,"_",g)]] <- array((ncol(ltrials[[paste0("Z_",g)]])-ncol(Cmatr)+1L):ncol(ltrials[[paste0("Z_",g)]]), dim = ncol(Cmatr))
       }
     }
   }
@@ -300,7 +300,7 @@ parse_formula <- function(f) {
 
 
 #'@export
-stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "gamma", "exponential"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), allow_guessing = FALSE, parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = TRUE, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
+stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "gamma", "exponential"), K_mode = c("bernoulli", "free", "binomial", "hypergeometric"), max_K = locations, allow_guessing = FALSE, parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = TRUE, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
 
   task <- match.arg(task)
   C_mode <- match.arg(C_mode)
@@ -544,13 +544,13 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     w_body <- sprintf("vector[%1$d] w = rep_vector(1.0/%1$d.0, %1$d);", locations)
   } else if(w_mode == "regions") {
     if(length(regions) == 0) stop("You must define regions if w_mode = 'regions'!")
-    add_param(name = "b", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions))
-    w_pars <- "b"
+    add_param(name = "r", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions))
+    w_pars <- "r"
     w_body <- c(
       sprintf("vector[%1$d] w;", locations),
-      vapply(seq_along(regions), function(i) {
-        sprintf("w[%d] = b[%d]/%d.0;", regions[[i]], i, length(regions[[i]]))
-      }, character(1))
+      unlist(lapply(seq_along(regions), function(i) {
+        sprintf("w[%d] = r[%d]/%d.0;", regions[[i]], i, length(regions[[i]]))
+      }))
     )
     #add_code(
     #  "generated quantities",
@@ -571,18 +571,18 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   K_args <- "[]'"
   if(K_mode == "bernoulli") {
     add_code("functions", includeFile("bernoulliK.stan"))
-    add_param(name = "K", class = c("phi", "K"), type = sprintf("real<lower=0,upper=%d>", locations), ctype="real", rtype="real", prior = substitute(~uniform(0,nS), list(nS = locations)))
+    add_param(name = "K", class = c("phi", "K"), type = sprintf("real<lower=0,upper=%d>", max_K), ctype="real", rtype="real", prior = ~lognormal(1.1,0.3))
     K_args <- "[K]'"
   } else if(K_mode == "free") {
     add_code("functions", includeFile("freeK.stan"))
-    add_param(name = "pK", class = c("phi","K"), type = sprintf("simplex[%d]", locations+1L), ctype=sprintf("vector[%d]", locations+1L), rtype="vector", dim = locations+1L, prior = ~lognormal(0,0.5))
+    add_param(name = "pK", class = c("phi","K"), type = sprintf("simplex[%d]", max_K+1L), ctype=sprintf("vector[%d]", max_K+1L), rtype="vector", dim = max_K+1L, prior = ~lognormal(0,0.5))
     #add_code("generated quantities", paste0("real mK = ",paste(sprintf("%d * pK[%d]", seq_len(locations), seq_len(locations)+1L), collapse=" + "),";"));
     K_args <- "pK"
   } else if(K_mode == "binomial") {
     add_code("functions", includeFile("binomialK.stan"))
     # TODO add prior!
     add_param(name = "nK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real")
-    add_param(name = "pK", class = c("phi", "K"), type = "real<lower=machine_precision(),upper=1.0-machine_precision()>", ctype="real", rtype="real", prior = ~uniform(0,1))
+    add_param(name = "pK", class = c("phi", "K"), type = "real<lower=machine_precision(),upper=1.0-machine_precision()>", ctype="real", rtype="real", prior = ~beta(2,2))
     #add_code("generated quantities", "real mK = nK * pK;")
     K_args <- "[nK, pK]'"
   } else if(K_mode == "hypergeometric") {
