@@ -1,4 +1,4 @@
-#'@importFrom rstan extract stan_model sampling optimizing gqs extract sflist2stanfit rstan_options read_stan_csv
+#'@importFrom rstan extract stan_model sampling optimizing gqs sflist2stanfit rstan_options read_stan_csv
 #'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows rename last
 #'@importFrom tidyr pivot_longer pivot_wider crossing
 #'@importFrom readr read_table write_tsv
@@ -1353,8 +1353,12 @@ list2stantvafit <- function(fits) {
   if(!is.list(fits)) stop("`fits` must be a list of `stantvafit` objects!")
   for(i in seq_along(fits)) {
     if(!inherits(fits[[i]], "stantvafit")) stop("`fits` must be a list of `stantvafit` objects but element #",i," is not!")
-    if(i > 1L && !identical(fits[[i]]@stanmodel@code, fits[[1]]@stanmodel@code)) stop("All `stantvafit` objects must follow from the same RStanTVA model!")
-    if(i > 1L && !identical(fits[[i]]@data, fits[[1]]@data)) stop("All `stantvafit` objects must follow from the same data!")
+    if(i > 1L) {
+      if(fits[[i]]@sim$iter != fits[[1]]@sim$iter) stop("All `stantvafit` objects must have the same number of iterations!")
+      if(fits[[i]]@sim$warmup != fits[[1]]@sim$warmup) stop("All `stantvafit` objects must have the same number of warmup iterations!")
+      if(!identical(fits[[i]]@stanmodel@code, fits[[1]]@stanmodel@code)) stop("All `stantvafit` objects must follow from the same RStanTVA model!")
+      if(!identical(fits[[i]]@data, fits[[1]]@data)) stop("All `stantvafit` objects must follow from the same data!")
+    }
   }
   r <- as(sflist2stanfit(fits), "stantvafit")
   r@data <- fits[[1]]@data
@@ -1455,24 +1459,29 @@ coef.stanfit <- function(object) {
 setMethod("coef", "stantvafit", coef.stanfit)
 
 predict.stantvafit <- function(object, newdata, variables = names(object@stanmodel@code@df)) {
-  p <- extract(object)
-
   newdata <- if(missing(newdata)) object@data else prepare_data(newdata, object@stanmodel, FALSE)
   fx <- bind_rows(lapply(object@stanmodel@code@config$formula, parse_formula))
   sapply(variables, function(parname) {
     which_formula <- match(parname, fx$param)
     if(is.na(which_formula)) {
-      p[[parname]]
+      p <- extract(object, parname)[[1]]
+      replicate(newdata$N, p)
     } else {
       #### !!!!!!!!
+      bt <- fx$inverse_link[[which_formula]]
+      rfs <- fx$random[[which_formula]]
       par_dim <- object@stanmodel@code@dim[parname]
       par_df <- object@stanmodel@code@df[parname]
+      ps <- "b"
+      for(i in seq_len(nrow(rfs))) {
+        if(par_dim > 1) ps <- c(ps, paste0("w_",rfs$group[i],"_",seq_len(par_df)))
+        else ps <- c(ps, paste0("w_",rfs$group[i]))
+      }
+      p <- extract(object, ps)
       r <- vapply(seq_len(par_dim), function(i) {
         m <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i) else paste0("map_",parname)]]
-        if(i > par_df) return(matrix(1, length(p$lp__), newdata$N))
+        if(i > par_df) return(matrix(1, (object@sim$iter-object@sim$warmup)*object@sim$chains, newdata$N))
         y <- tcrossprod(newdata$X[,m], p$b[,m])
-        bt <- fx$inverse_link[[which_formula]]
-        rfs <- fx$random[[which_formula]]
         for(k in seq_len(nrow(rfs))) {
           mrf <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i,"_",rfs$group[k],"_",i) else paste0("map_",parname,"_",rfs$group[k])]]
           for(j in seq_len(newdata[[paste0("N_",rfs$factor_txt[k])]])) {
@@ -1490,7 +1499,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
           }
         }
         t(fx$inverse_link[[which_formula]](y))
-      }, matrix(NA_real_, length(p$lp__), newdata$N))
+      }, matrix(NA_real_, (object@sim$iter-object@sim$warmup)*object@sim$chains, newdata$N))
       if(par_dim > 1L && par_dim > par_df) {
         rs <- do.call(cbind, apply(r, 2, rowSums, simplify = FALSE))
         for(i in seq_len(par_dim)) {
