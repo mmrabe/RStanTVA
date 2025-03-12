@@ -3,7 +3,7 @@
 #'@importFrom tidyr pivot_longer pivot_wider crossing
 #'@importFrom readr read_table write_tsv
 #'@importFrom methods formalArgs new as callNextMethod show
-#'@importFrom stats na.omit as.formula model.matrix pnorm runif terms
+#'@importFrom stats na.omit as.formula model.matrix pnorm runif terms contrasts
 #'@importFrom cli col_cyan col_magenta col_grey col_blue ansi_strwrap style_underline style_bold
 #'@importFrom tibble tibble
 #'@importFrom utils citation str combn packageName packageVersion
@@ -116,9 +116,24 @@ setMethod("model_code", "stanfit", function(object, type) {
 
 ## add hierarchical stuff here
 
-prepare_data <- function(trials, model, require_outcome = TRUE) {
+prepare_data <- function(trials, model, require_outcome = TRUE, contrasts = list()) {
 
   mc <- if(inherits(model, "stantvamodel")) model@code else if(inherits(model, "stantvacode")) model else stop("`model` must be a StanTVA model or StanTVA model code object!")
+
+  for(cn in names(contrasts)) {
+    if(cn %in% colnames(trials)) {
+      if(!is.factor(trials[[cn]])) {
+        trials[[cn]] <- as.factor(trials[[cn]])
+      }
+      x <- setdiff(levels(trials[[cn]]), rownames(contrasts[[cn]]))
+      if(length(x) > 0) {
+        stop("Originally fitted dataset did not contain level(s) ",paste0(x,collapse=", ")," for factor ",cn,"!")
+      }
+      trials[[cn]] <- factor(as.character(trials[[cn]]), levels = rownames(contrasts[[cn]]))
+      stats::contrasts(trials[[cn]]) <- contrasts[[cn]]
+    }
+  }
+
 
   fs <- mc@config$formula
 
@@ -140,13 +155,7 @@ prepare_data <- function(trials, model, require_outcome = TRUE) {
   for(i in seq_len(nrow(pf))) {
     for(j in seq_len(nrow(pf$random[[i]]))) {
       x <- eval(pf$random[[i]]$factor[[j]], trials)
-      ltrials[[pf$random[[i]]$factor_txt[[j]]]] <- if(is.character(x)) {
-        rfc <- as.factor(x)
-        rfcl <- levels(rfc)
-        rfc <- as.integer(rfc)
-        attr(rfc, "levels") <- rfcl
-        rfc
-      } else if(is.factor(x)) {
+      ltrials[[pf$random[[i]]$factor_txt[[j]]]] <- if(is.factor(x)) {
         rfc <- as.integer(x)
         attr(rfc, "levels") <- levels(x)
         rfc
@@ -155,7 +164,7 @@ prepare_data <- function(trials, model, require_outcome = TRUE) {
         attr(rfc, "levels") <- seq_len(max(x))
         rfc
       } else {
-        stop("Random factor ",sQuote(deparse1(pf$random[[i]]$factor[[j]]))," must be integer, factor, or character!")
+        stop("Random factor ",sQuote(deparse1(pf$random[[i]]$factor[[j]]))," must be integer or factor!")
       }
       ltrials[[paste0("N_",pf$random[[i]]$factor_txt[[j]])]] <- length(attr(rfc, "levels"))
     }
@@ -186,6 +195,11 @@ prepare_data <- function(trials, model, require_outcome = TRUE) {
         ltrials[[if(mc@dim[f_var] == 1L) paste0("map_",f_var,"_",g) else paste0("map_",f_var,"_",j,"_",g)]] <- array((ncol(ltrials[[paste0("Z_",g)]])-ncol(Cmatr)+1L):ncol(ltrials[[paste0("Z_",g)]]), dim = ncol(Cmatr))
       }
     }
+  }
+
+  attr(ltrials, "contrasts") <- list()
+  for(cn in colnames(trials)) if(is.factor(trials[[cn]])) {
+    attr(ltrials, "contrasts")[[cn]] <- stats::contrasts(trials[[cn]])
   }
 
   ltrials
@@ -1116,7 +1130,7 @@ setMethod("show", "stantvacode", function(object) {
 
 
 #'@export
-stancsv2stantvafit <- function(csv_file, data, model) {
+stancsv2stantvafit <- function(csv_file, data, model, contrasts = list()) {
   mm <- if(inherits(model, "stantvamodel")) model else if(inherits(model, "stantvacode")) {
     mm <- stan_model(model_code = model@code, isystem = stantva_path())
     mm <- as(mm, "stantvamodel")
@@ -1126,7 +1140,7 @@ stancsv2stantvafit <- function(csv_file, data, model) {
   fx <- read_stan_csv(csv_file)
   fx@stanmodel <- mm
   fx <- as(fx, "stantvafit")
-  fx@data <- prepare_data(data, mm)
+  fx@data <- prepare_data(data, mm, contrasts=contrasts)
   fx
 }
 
@@ -1467,7 +1481,7 @@ coef.stanfit <- function(object) {
 setMethod("coef", "stantvafit", coef.stanfit)
 
 predict.stantvafit <- function(object, newdata, variables = names(object@stanmodel@code@df)) {
-  newdata <- if(missing(newdata)) object@data else prepare_data(newdata, object@stanmodel, FALSE)
+  newdata <- if(missing(newdata)) object@data else prepare_data(newdata, object@stanmodel, FALSE, attr(object@data, "contrasts"))
   fx <- bind_rows(lapply(object@stanmodel@code@config$formula, parse_formula))
   sapply(variables, function(parname) {
     which_formula <- match(parname, fx$param)
