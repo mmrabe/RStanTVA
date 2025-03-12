@@ -1342,28 +1342,36 @@ setMethod("logLik", "stantvafit", function(object, newdata) {
 
 
 #' @export
-read_stantva_fit <- function(files) if(all(file.exists(files))) list2stantvafit(lapply(files, readRDS)) else stop("At least one of the files does not exist!")
+read_stantva_fit <- function(files) {
+  if(length(files) < 1) stop("`files` must contain at least one file name!")
+  if(!is.character(files)) stop("`files` must be a character vector of `stantvafit` files!")
+  if(any(!file.exists(files))) stop("At least one of the files does not exist!")
+  message("Read ",files[[1]],"...")
+  a <- readRDS(files[[1]])
+  if(!inherits(a, "stantvafit")) stop("Files must be `stantvafit` objects!")
+  for(bf in files[-1]) {
+    message("Read and append ",bf,"...")
+    b <- readRDS(bf)
+    if(!inherits(b, "stantvafit")) stop("`fits` must be a list of `stantvafit` objects!")
+    if(b@sim$iter != a@sim$iter) stop("All `stantvafit` objects must have the same number of iterations!")
+    if(b@sim$warmup != a@sim$warmup) stop("All `stantvafit` objects must have the same number of warmup iterations!")
+    a@sim$chains <- a@sim$chains + b@sim$chains
+    a@sim$samples <- c(a@sim$samples, b@sim$samples)
+    a@sim$n_save <- c(a@sim$n_save, b@sim$n_save)
+    a@sim$warmup2 <- c(a@sim$warmup2, b@sim$warmup2)
+    a@sim$permutation <- c(a@sim$permutation, b@sim$permutation)
+    a@inits <- c(a@inits, b@inits)
+    a@stan_args <- c(a@stan_args, b@stan_args)
+    a@date <- max(a@date, b@date)
+    b <- NULL
+    gc(verbose = FALSE)
+  }
+  return(a)
+}
 
 #' @export
 write_stantva_fit <- function(fit, file) if(inherits(fit, "stantvafit")) saveRDS(fit, file, ...)
 
-
-#' @export
-list2stantvafit <- function(fits) {
-  if(!is.list(fits)) stop("`fits` must be a list of `stantvafit` objects!")
-  for(i in seq_along(fits)) {
-    if(!inherits(fits[[i]], "stantvafit")) stop("`fits` must be a list of `stantvafit` objects but element #",i," is not!")
-    if(i > 1L) {
-      if(fits[[i]]@sim$iter != fits[[1]]@sim$iter) stop("All `stantvafit` objects must have the same number of iterations!")
-      if(fits[[i]]@sim$warmup != fits[[1]]@sim$warmup) stop("All `stantvafit` objects must have the same number of warmup iterations!")
-      if(!identical(fits[[i]]@stanmodel@code, fits[[1]]@stanmodel@code)) stop("All `stantvafit` objects must follow from the same RStanTVA model!")
-      if(!identical(fits[[i]]@data, fits[[1]]@data)) stop("All `stantvafit` objects must follow from the same data!")
-    }
-  }
-  r <- as(sflist2stanfit(fits), "stantvafit")
-  r@data <- fits[[1]]@data
-  r
-}
 
 alias.stantvafit <- function(object) {
   attr(names(object), "alias")
