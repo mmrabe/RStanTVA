@@ -22,7 +22,8 @@ Imports:
     stats,
     cli,
     lme4,
-    brms,
+    brms
+Suggests:
     cmdstanr
 LazyData: true
 RoxygenNote: 7.3.2

@@ -8,7 +8,6 @@
 #'@importFrom tibble tibble
 #'@importFrom utils citation str combn packageName packageVersion
 #'@importFrom lme4 findbars subbars fixef ranef nobars
-#'@importFrom cmdstanr cmdstan_model write_stan_file
 #'@importFrom brms prior set_prior
 #'
 
@@ -1405,14 +1404,14 @@ setMethod("sampling", c(object = "stantvamodel"), function(object, data,init = "
     f <- as(f, "stantvafit")
     f@data <- pdata
   } else if(backend == "cmdstanr") {
-    m <- cmdstan_model(stan_file = write_stan_file(object@code@code), include_paths = stantva_path(), cpp_options = cpp_options)
+    m <- cmdstanr::cmdstan_model(stan_file = cmdstanr::write_stan_file(object@code@code), include_paths = stantva_path(), cpp_options = cpp_options)
     x <- m$sample(pdata, init = init, threads_per_chain = rstan_options("threads_per_chain"), save_warmup = 0L, ...)
     for(fp in x$output_files()) {
       fix_cmdstanr_output(fp)
     }
     f <- stancsv2stantvafit(x$output_files(), d, object@code)
   } else if(backend == "cmdstanr_mpi") {
-    m <- cmdstan_model(stan_file = write_stan_file(object@code@code), include_paths = stantva_path(), cpp_options = cpp_options)
+    m <- cmdstanr::cmdstan_model(stan_file = cmdstanr::write_stan_file(object@code@code), include_paths = stantva_path(), cpp_options = cpp_options)
     x <- m$sample_mpi(pdata, init = init, save_warmup = 0L, ...)
     for(fp in x$output_files()) {
       fix_cmdstanr_output(fp)
