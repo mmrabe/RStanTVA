@@ -8,7 +8,7 @@ Authors@R: c(
 Description: This is an R package containing a Stan implementation of the Theory of Visual Attention (TVA; Bundesen, 1990; <doi:10.1037/0033-295X.97.4.523>) and numerous convenience functions for generating, compiling, fitting, and analyzing (RStan)TVA models.
 License: GPL (>= 3)
 Encoding: UTF-8
-Date: 2024-09-27
+Date: 2025-03-25
 Depends:
     rstan,
     R (>= 3.6)
