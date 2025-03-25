@@ -9,6 +9,7 @@
 #'@importFrom utils citation str combn packageName packageVersion
 #'@importFrom lme4 findbars subbars fixef ranef nobars
 #'@importFrom brms prior set_prior
+#'@importFrom rlang .data .env
 #'
 
 
@@ -90,15 +91,15 @@ read_tva_data <- function(file, set = LETTERS, ...) {
   if(n != nrow(dat)) warning("Expected ",n," trials but only read ",nrow(dat)," lines!")
   close(f)
   dat %>% mutate(
-    across(c(targets, distractors), ~do.call(rbind, strsplit(.x, "", TRUE) %>% lapply(function(x) if_else(x=="0",NA_character_,x)))),
-    report = strsplit(if_else(report == "-", "", report), "", TRUE),
-    S = (!is.na(targets) | !is.na(distractors))+0L,
-    D = (!is.na(distractors) )+ 0L,
-    R = t(vapply(seq_len(n()), function(i) targets[i,] %in% report[[i]] | distractors[i,] %in% report[[i]], logical(ncol(targets)))) + 0L,
-    items = t(vapply(seq_len(n()), function(i) if_else(is.na(targets[i,]), distractors[i,], targets[i,]), character(ncol(targets)))),
-    E = vapply(seq_len(n()), function(i) sum(!report[[i]] %in% items[i,]), integer(1)),
+    across(c(.data$targets, .data$distractors), ~do.call(rbind, strsplit(.x, "", TRUE) %>% lapply(function(x) if_else(x=="0",NA_character_,x)))),
+    report = strsplit(if_else(.data$report == "-", "", .data$report), "", TRUE),
+    S = (!is.na(.data$targets) | !is.na(.data$distractors))+0L,
+    D = (!is.na(.data$distractors) )+ 0L,
+    R = t(vapply(seq_len(n()), function(i) .data$targets[i,] %in% .data$report[[i]] | .data$distractors[i,] %in% .data$report[[i]], logical(ncol(.data$targets)))) + 0L,
+    items = t(vapply(seq_len(n()), function(i) if_else(is.na(.data$targets[i,]), .data$distractors[i,], .data$targets[i,]), character(ncol(.data$targets)))),
+    E = vapply(seq_len(n()), function(i) sum(!.data$report[[i]] %in% .data$items[i,]), integer(1)),
     I = length(set)
-  ) %>% select(condition, items, report, S, D, T = exposure, R, E, I)
+  ) %>% select(.data$condition, .data$items, .data$report, .data$S, .data$D, T = .data$exposure, .data$R, .data$E, .data$I)
 }
 
 #' @title Write TVA data
@@ -284,9 +285,8 @@ parse_formula <- function(f) {
   if(is.symbol(lhs)) {
     parname <- as.character(lhs)
     link_name <- "identity"
-    link <- function(.) .
+    inverse_link <- link <- quote(function(.) .)
     stan_link <- "%s"
-    inverse_link <- function(.) .
     stan_inverse_link <- "%s"
     args <- list()
   } else if(is.call(lhs) && length(lhs) >= 2L && is.symbol(lhs[[2L]])) {
@@ -294,39 +294,39 @@ parse_formula <- function(f) {
     link_name <- as.character(lhs[[1L]])
     args <- as.list(lhs[c(-1,-2)])
     if(link_name == "log") {
-      link <- log
+      link <- quote(log)
       stan_link <- "log(%s)"
-      inverse_link <- exp
+      inverse_link <- quote(exp)
       stan_inverse_link <- "exp(%s)"
     } else if(link_name == "logit") {
-      link <- qlogis
+      link <- quote(qlogis)
       stan_link <- "logit(%s)"
-      inverse_link <- plogis
+      inverse_link <- quote(plogis)
       stan_inverse_link <- "inv_logit(%s)"
     } else if(link_name == "probit") {
-      link <- qnorm
+      link <- quote(qnorm)
       stan_link <- "inv_Phi(%s)"
-      inverse_link <- pnorm
+      inverse_link <- quote(pnorm)
       stan_inverse_link <- "Phi(%s)"
     } else if(link_name == "scaled_logit" && length(args) == 2L) {
-      link <- function(x) qlogis((x-args[[1]])/(args[[2]]-args[[1]]))
+      link <- substitute(function(x) qlogis((x-a)/(b-a)), list(a = args[[1]], b = args[[2]]))
       stan_link <- sprintf("logit((%%s-%1$g)/(%2$g-%1$g))", args[[1]], args[[2]])
-      inverse_link <- function(x) args[[1]]+(args[[2]]-args[[1]])*plogis(x)
+      inverse_link <- substitute(function(x) a+(b-a)*plogis(x), list(a = args[[1]], b = args[[2]]))
       stan_inverse_link <- sprintf("%1$g+(%2$g-%1$g)*inv_logit(%%s)", args[[1]], args[[2]])
     } else if(link_name == "scaled_logit" && length(args) == 1L) {
-      link <- function(x) qlogis(x/args[[2]])
+      link <- substitute(function(x) qlogis(x/a), list(a = args[[1]]))
       stan_link <- sprintf("logit(%%s/%g)", args[[1]])
-      inverse_link <- function(x) args[[2]]*plogis(x)
+      inverse_link <- substitute(function(x) a*plogis(x), list(a = args[[1]]))
       stan_inverse_link <- sprintf("%g*inv_logit(%%s)", args[[1]])
     } else if(link_name == "scaled_probit" && length(args) == 2L) {
-      link <- function(x) qnorm((x-args[[1]])/(args[[2]]-args[[1]]))
+      link <- substitute(function(x) qnorm((x-a)/(b-a)), list(a = args[[1]], b = args[[2]]))
       stan_link <- sprintf("inv_Phi((%%s-%1$g)/(%2$g-%1$g))", args[[1]], args[[2]])
-      inverse_link <- function(x) args[[1]]+(args[[2]]-args[[1]])*pnorm(x)
+      inverse_link <- substitute(function(x) a+(b-a)*pnorm(x), list(a = args[[1]], b = args[[2]]))
       stan_inverse_link <- sprintf("%1$g+(%2$g-%1$g)*Phi(%%s)", args[[1]], args[[2]])
     } else if(link_name == "scaled_probit" && length(args) == 1L) {
-      link <- function(x) qnorm(x/args[[1]])
+      link <- substitute(function(x) qnorm(x/a), list(a = args[[1]]))
       stan_link <- sprintf("inv_Phi(%%s/%g)", args[[1]])
-      inverse_link <- function(x) args[[1]]*pnorm(x)
+      inverse_link <- substitute(function(x) a*pnorm(x), list(a = args[[1]]))
       stan_inverse_link <- sprintf("%g*Phi(%%s)", args[[1]])
     } else stop("Unknown link ",sQuote(link_name),"!")
   } else stop("lhs must be a call or symbol!")
@@ -334,9 +334,9 @@ parse_formula <- function(f) {
   tibble(
     param = parname,
     link_name = link_name,
-    link = list(link),
+    link = list(eval(link)),
     stan_link = stan_link,
-    inverse_link = list(inverse_link),
+    inverse_link = list(eval(inverse_link)),
     stan_inverse_link = stan_inverse_link,
     fixed_formula = list(formula(call("~",nobars(f[[3]])))),
     random = lapply(seq_along(fxs), function(i) {
@@ -833,11 +833,11 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   )
 
   # default parameter-unspecific priors
-  default_priors <- prior(normal(0.0,0.05), "sd") +
-    prior(normal(0.0,0.1), "sd", coef = "Intercept") +
-    prior(lkj_corr(3.0), "cor") +
-    prior(normal(0.0,5.0)) +
-    prior(normal(0.0,10.0), coef = "Intercept")
+  default_priors <- prior("normal(0.0,0.05)", "sd") +
+    prior("normal(0.0,0.1)", "sd", coef = "Intercept") +
+    prior("lkj_corr(3.0)", "cor") +
+    prior("normal(0.0,5.0)") +
+    prior("normal(0.0,10.0)", coef = "Intercept")
 
   # default parameter-specific priors
   for(name in names(parameters)) {
@@ -852,7 +852,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
 
 
   if(nrow(hierarchical_config) > 0L) {
-    all_params <- hierarchical_config %>% rename(name = param) %>% mutate(dim = vapply(name, function(x) if(!is.null(parameters[[x]]$dim)) as.integer(parameters[[x]]$dim) else 1L, integer(1)), fdim = vapply(name, function(x) if(grepl("^simplex", parameters[[x]]$type)) as.integer(parameters[[x]]$dim)-1L else if(!is.null(parameters[[x]]$dim)) as.integer(parameters[[x]]$dim) else 1L, integer(1)))
+    all_params <- hierarchical_config %>% rename(name = .data$param) %>% mutate(dim = vapply(name, function(x) if(!is.null(parameters[[x]]$dim)) as.integer(parameters[[x]]$dim) else 1L, integer(1)), fdim = vapply(name, function(x) if(grepl("^simplex", parameters[[x]]$type)) as.integer(parameters[[x]]$dim)-1L else if(!is.null(parameters[[x]]$dim)) as.integer(parameters[[x]]$dim) else 1L, integer(1)))
     for(i in seq_len(nrow(all_params))) {
       if(all_params$dim[i] > 1L) {
         is_custom <- !is.null(all_params$random[[i]]$custom) && all_params$random[[i]]$custom
@@ -869,7 +869,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     if(isTRUE(debug_neginf_loglik)) {
       l_data <- c(l_data, clean_name(all_random_factors))
     }
-    all_random_params <- all_random_effects %>% group_by(group, factor_txt) %>% summarize(dim = sum(all_params$dim[match(param, all_params$name)]), fdim = sum(all_params$fdim[match(param, all_params$name)]), M_var = paste(sprintf("M_%s_%s", param, group), collapse = "+"))
+    all_random_params <- all_random_effects %>% group_by(.data$group, .data$factor_txt) %>% summarize(dim = sum(all_params$dim[match(.data$param, all_params$name)]), fdim = sum(all_params$fdim[match(.data$param, all_params$name)]), M_var = paste(sprintf("M_%s_%s", .data$param, .data$group), collapse = "+"))
     M_var <- paste(if_else(all_params$fdim!=1L,sprintf("%d*M_%s", all_params$fdim, all_params$name),sprintf("M_%s", all_params$name)), collapse = "+")
     for(rf in clean_name(all_random_factors)) {
       add_data(name = sprintf("N_%s", rf), type = "int<lower=1,upper=N>", ctype="int", rtype="int", dim = 1)
@@ -916,37 +916,37 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
       })),
       "{",
       paste0("\t",
-        c(
-          unlist(lapply(seq_len(nrow(all_params)), function(i) {
-            if(all_params$dim[i] == 1) {
-              sprintf("%1$s = X[,map_%1$s] * b[map_%1$s];", all_params$name[i])
-            } else {
-              sprintf("%2$s[,%1$d] = X[,map_%2$s_%1$d] * b[map_%2$s_%1$d];", seq_len(all_params$fdim[i]), all_params$name[i])
-            }
-          })),
-          unlist(lapply(all_random_factors, function(rf) {
-            j <- which(all_random_effects$factor_txt == rf)
-            c(
-              sprintf("for(i in 1:N_%s) {", clean_name(rf)),
-              sprintf("\tarray[Ntrials_by_%1$s[i]] int j = trials_by_%1$s[i,:Ntrials_by_%1$s[i]];", clean_name(rf)),
-              #sprintf("\tmatrix[Ntrials_by_%1$s[i],M_%2$s] Z_%2$s_i = Z_%2$s[j,:];", clean_name(rf), unique(all_random_effects$group[j])),
-              #sprintf("\tvector[M_%1$s] z_%1$s_i = w_%1$s[i,:];", unique(all_random_effects$group[j])),
-              unlist(
-                lapply(j, function(i) {
-                  k <- match(all_random_effects$param[i], all_params$name)
-                  if(all_params$dim[k] == 1L) {
-                    sprintf("\t%1$s[j] += Z_%2$s[j,map_%1$s_%2$s] * w_%2$s[i,map_%1$s_%2$s];", all_random_effects$param[i], all_random_effects$group[i])
-                  } else {
-                    sprintf("\t%1$s[j,%3$d] += Z_%2$s[j,map_%1$s_%3$d_%2$s] * w_%2$s[i,map_%1$s_%3$d_%2$s];", all_random_effects$param[i], all_random_effects$group[i], all_random_effects$index[i])
-                  }
-                })
-              ),
-              "}"
-            )
-          })),
-          unlist(lapply(which(all_params$link_name != "identity"), function(i) if(all_params$fdim[i] < all_params$dim[i]) sprintf("%1$s[,:%2$d] = %3$s;", all_params$name[i], all_params$fdim[i], sprintf(all_params$stan_inverse_link[i], sprintf("%s[,:%d]", all_params$name[i], all_params$fdim[i]))) else sprintf("%1$s = %2$s;", all_params$name[i], sprintf(all_params$stan_inverse_link[i], all_params$name[i])))),
-          unlist(lapply(which(all_params$fdim < all_params$dim), function(i) c(sprintf("%1$s[,%2$d] = 1.0 / (1.0 + %3$s);", all_params$name[i], all_params$dim[i], paste(sprintf("%s[,%d]", all_params$name[i], seq_len(all_params$fdim[i])), collapse = " + ")), sprintf("%1$s[,%3$d] .*= %1$s[,%2$d];", all_params$name[i], all_params$dim[i], seq_len(all_params$fdim[i])))))
-        )
+             c(
+               unlist(lapply(seq_len(nrow(all_params)), function(i) {
+                 if(all_params$dim[i] == 1) {
+                   sprintf("%1$s = X[,map_%1$s] * b[map_%1$s];", all_params$name[i])
+                 } else {
+                   sprintf("%2$s[,%1$d] = X[,map_%2$s_%1$d] * b[map_%2$s_%1$d];", seq_len(all_params$fdim[i]), all_params$name[i])
+                 }
+               })),
+               unlist(lapply(all_random_factors, function(rf) {
+                 j <- which(all_random_effects$factor_txt == rf)
+                 c(
+                   sprintf("for(i in 1:N_%s) {", clean_name(rf)),
+                   sprintf("\tarray[Ntrials_by_%1$s[i]] int j = trials_by_%1$s[i,:Ntrials_by_%1$s[i]];", clean_name(rf)),
+                   #sprintf("\tmatrix[Ntrials_by_%1$s[i],M_%2$s] Z_%2$s_i = Z_%2$s[j,:];", clean_name(rf), unique(all_random_effects$group[j])),
+                   #sprintf("\tvector[M_%1$s] z_%1$s_i = w_%1$s[i,:];", unique(all_random_effects$group[j])),
+                   unlist(
+                     lapply(j, function(i) {
+                       k <- match(all_random_effects$param[i], all_params$name)
+                       if(all_params$dim[k] == 1L) {
+                         sprintf("\t%1$s[j] += Z_%2$s[j,map_%1$s_%2$s] * w_%2$s[i,map_%1$s_%2$s];", all_random_effects$param[i], all_random_effects$group[i])
+                       } else {
+                         sprintf("\t%1$s[j,%3$d] += Z_%2$s[j,map_%1$s_%3$d_%2$s] * w_%2$s[i,map_%1$s_%3$d_%2$s];", all_random_effects$param[i], all_random_effects$group[i], all_random_effects$index[i])
+                       }
+                     })
+                   ),
+                   "}"
+                 )
+               })),
+               unlist(lapply(which(all_params$link_name != "identity"), function(i) if(all_params$fdim[i] < all_params$dim[i]) sprintf("%1$s[,:%2$d] = %3$s;", all_params$name[i], all_params$fdim[i], sprintf(all_params$stan_inverse_link[i], sprintf("%s[,:%d]", all_params$name[i], all_params$fdim[i]))) else sprintf("%1$s = %2$s;", all_params$name[i], sprintf(all_params$stan_inverse_link[i], all_params$name[i])))),
+               unlist(lapply(which(all_params$fdim < all_params$dim), function(i) c(sprintf("%1$s[,%2$d] = 1.0 / (1.0 + %3$s);", all_params$name[i], all_params$dim[i], paste(sprintf("%s[,%d]", all_params$name[i], seq_len(all_params$fdim[i])), collapse = " + ")), sprintf("%1$s[,%3$d] .*= %1$s[,%2$d];", all_params$name[i], all_params$dim[i], seq_len(all_params$fdim[i])))))
+             )
       ),
       "}",
       unlist(lapply(seq_len(nrow(all_params)), function(i) {
@@ -1592,7 +1592,7 @@ setMethod("fixef", "stantvafit", fixef.stantvafit)
 
 
 ranef.stantvafit <- function(object) {
-  all_params <- bind_rows(lapply(object@stanmodel@code@config$formula, parse_formula)) %>% rename(name = param) %>% mutate(dim = vapply(name, function(x) if(!is.null(parameters[[x]]$dim)) as.integer(parameters[[x]]$dim) else 1L, integer(1)), fdim = vapply(name, function(x) if(grepl("^simplex", parameters[[x]]$type)) as.integer(parameters[[x]]$dim)-1L else if(!is.null(parameters[[x]]$dim)) as.integer(parameters[[x]]$dim) else 1L, integer(1)))
+  all_params <- bind_rows(lapply(object@stanmodel@code@config$formula, parse_formula)) %>% rename(name = .data$param) %>% mutate(dim = object@stanmodel@code@dim[.data$name], fdim = if_else(.data$name %in% names(object@stanmodel@code@df), object@stanmodel@code@df[.data$name], object@stanmodel@code@dim[.data$name]))
   for(i in seq_len(nrow(all_params))) {
     if(all_params$dim[i] > 1L) {
       is_custom <- all_params$random[[i]]$custom
@@ -1607,7 +1607,7 @@ ranef.stantvafit <- function(object) {
   g <- bind_rows(all_params$random)
   if(nrow(g) == 0L) return(list())
   sapply(unique(g$factor_txt), function(rf) {
-    gs <- unique(filter(g, factor_txt == rf)$group)
+    gs <- unique(filter(g, .data$factor_txt == rf)$group)
     bos <- rstan::extract(object, paste0("w_", gs))
     b <- array(NA_real_, dim = c(dim(bos[[1]])[1:2], sum(vapply(bos, function(x) dim(x)[[3]], integer(1)))))
     dimnames(b)[[3]] <- character(dim(b)[[3]])
@@ -1621,7 +1621,7 @@ ranef.stantvafit <- function(object) {
           dimnames(bo)[[3]][m] <- sprintf("%s_%s", g$param[i], colnames(object@data[[sprintf("Z_%s", o)]])[m])
         } else  {
           m <- object@data[[sprintf("map_%s_%d_%s", g$param[i], g$index[i], o)]]
-          dimnames(bo)[[3]][m[,j]] <- sprintf("%s_%s[%d]", g$param[i], colnames(object@data[[sprintf("Z_%s", o)]])[m[,j]], g$index[i])
+          dimnames(bo)[[3]][m[,i]] <- sprintf("%s_%s[%d]", g$param[i], colnames(object@data[[sprintf("Z_%s", o)]])[m[,i]], g$index[i])
         }
       }
       b[,,y:(y+dim(bo)[[3]]-1L)] <- bo
@@ -1770,7 +1770,7 @@ tva_report <- function(data) {
     score = as.integer(if(is.null(data$D)) rowSums(data$R == 1L & data$S == 1L) else rowSums(data$R == 1L & data$S == 1L & data$D == 0L)),
     n_items = as.integer(rowSums(data$S == 1L)),
     n_distractors = if(is.null(data$D)) integer(nrow(data)) else as.integer(rowSums(data$D))
-  ) %>% mutate(n_targets = n_items - n_distractors)
+  ) %>% mutate(n_targets = .data$n_items - .data$n_distractors)
 }
 
 #' Show StanTVA fit object
@@ -1830,7 +1830,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
   if(nrow(fx) > 0L) {
 
-    rfs <- fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && x@stanmodel@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(x@stanmodel@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(custom | is.na(index), group, paste0(group,"_",index)))
+    rfs <- fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && x@stanmodel@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(x@stanmodel@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
 
     random_factors_txt <- if(nrow(rfs) > 0L) unique(rfs$factor_txt) else character()
 
@@ -1915,7 +1915,7 @@ translate_names <- function(model, data, names) {
         new_ret[match(sprintf("b[%d]", m), ret)] <- paste0(fx$param[i], "_", colnames(data$X)[m], "[",j,"]")
       }
     }
-    rfs <- if(is.null(fx$random) || nrow(bind_rows(fx$random)) == 0) tibble() else fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && model@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(model@code@dim[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(custom | is.na(index), group, paste0(group,"_",index)))
+    rfs <- if(is.null(fx$random) || nrow(bind_rows(fx$random)) == 0) tibble() else fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && model@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(model@code@dim[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
     for(i in seq_len(nrow(rfs))) {
       param <- rfs$param[i]
       if(model@code@dim[param] == 1L) {
