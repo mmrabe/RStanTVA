@@ -1,5 +1,5 @@
 #'@importFrom rstan extract stan_model sampling optimizing gqs sflist2stanfit rstan_options read_stan_csv
-#'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows rename last
+#'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows rename last filter
 #'@importFrom tidyr pivot_longer pivot_wider crossing
 #'@importFrom readr read_table write_tsv
 #'@importFrom methods formalArgs new as callNextMethod show
@@ -1409,14 +1409,14 @@ setMethod("sampling", c(object = "stantvamodel"), function(object, data,init = "
     for(fp in x$output_files()) {
       fix_cmdstanr_output(fp)
     }
-    f <- stancsv2stantvafit(x$output_files(), d, object@code)
+    f <- stancsv2stantvafit(x$output_files(), data, object@code)
   } else if(backend == "cmdstanr_mpi") {
     m <- cmdstanr::cmdstan_model(stan_file = cmdstanr::write_stan_file(object@code@code), include_paths = stantva_path(), cpp_options = cpp_options)
     x <- m$sample_mpi(pdata, init = init, save_warmup = 0L, ...)
     for(fp in x$output_files()) {
       fix_cmdstanr_output(fp)
     }
-    f <- stancsv2stantvafit(x$output_files(), d, object@code)
+    f <- stancsv2stantvafit(x$output_files(), data, object@code)
   }
   .striplhspars("f")
   f
