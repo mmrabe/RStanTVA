@@ -4,6 +4,7 @@
 # RStanTVA
 
 <!-- badges: start -->
+[![R](https://github.com/mmrabe/RStanTVA/actions/workflows/rpkg.yml/badge.svg)](https://github.com/mmrabe/RStanTVA/actions/workflows/rpkg.yml)
 <!-- badges: end -->
 
 RStanTVA is an R package containing the StanTVA library and numerous
