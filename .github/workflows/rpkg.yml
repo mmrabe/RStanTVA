@@ -22,7 +22,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        r-version: ['4.0','latest']
+        r-version: ['latest']
 
     steps:
       - uses: actions/checkout@v4
