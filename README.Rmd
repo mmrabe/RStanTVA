@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # RStanTVA
 
 <!-- badges: start -->
+[![R](https://github.com/mmrabe/RStanTVA/actions/workflows/rpkg.yml/badge.svg)](https://github.com/mmrabe/RStanTVA/actions/workflows/rpkg.yml)
 <!-- badges: end -->
 
 RStanTVA is an R package containing the StanTVA library and numerous convenience functions for generating, compiling, fitting, and analyzing (Stan)TVA models.
@@ -44,28 +45,10 @@ tva_data <- tva_recovery %>% filter(subject == 20)
 tva_data
 ```
 
-Create a report and visualize the scores:
-
-```{r example-report}
-tva_data_report <- tva_report(tva_data)
-tva_data_report
-
-
-tva_data_report %>%
-  group_by(exposure) %>%
-  summarize(mean_score = mean(score)) %>%
-  ggplot(aes(exposure, mean_score)) +
-  theme_minimal() +
-  geom_point(size = 0.2) +
-  geom_line(linewidth = 0.2)
-  
-
-
-```
 
 Generate a StanTVA model for partial report of 6 display locations with Gaussian $t_0$ and a free $K$ distribution:
 
-```{r example-model}
+```{r example-model, warning=FALSE}
 library(RStanTVA)
 
 tva_model <- stantva_model(
@@ -74,8 +57,7 @@ tva_model <- stantva_model(
   w_mode = "locations",
   t0_mode = "gaussian",
   K_mode = "free",
-  sanity_checks = FALSE,
-  priors = FALSE
+  sanity_checks = FALSE
 )
 
 tva_model
@@ -92,10 +74,17 @@ The generated Stan model looks like this:
 
 Fit `tva_model` to the `tva_data` using maximum-likelihood estimation (MLE):
 
+```{r example-fit-mle}
+tva_fit_mle <- optimizing(tva_model, tva_data)
+tva_fit_mle$par[c("C","alpha","mu0","sigma0")]
+```
+
+
+Fit `tva_model` to the `tva_data` using maximum-likelihood estimation (MLE):
+
 ```{r example-fit}
-tva_fit <- optimizing(tva_model, tva_data)
-str(tva_fit)
-tva_fit$par[c("C","alpha","mu0","sigma0")]
+tva_fit <- sampling(tva_model, tva_data)
+tva_fit
 ```
 
 
