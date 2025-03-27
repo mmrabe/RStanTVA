@@ -964,7 +964,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     add_code(
       "model",
       unlist(lapply(seq_len(nrow(all_random_effects)), function(i) {
-        prior_slope <- get_prior(priors, "sd", group = all_random_effects$group[i], dpar = all_random_effects$param[i], coef = "")
+        prior_slope <- get_prior(priors, "sd", group = all_random_effects$group[i], dpar = all_random_effects$param[i])
         prior_intercept <- get_prior(priors, "sd", group = all_random_effects$group[i], dpar = all_random_effects$param[i], coef = "Intercept")
         name <- all_random_effects$param[i]
         gr <- all_random_effects$group[i]
@@ -1050,7 +1050,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     unlist(lapply(names(parameters), function(name) {
       if(!is.null(parameters[[name]]$hierarchical)) {
         prior_intercept <- get_prior(priors, "b", dpar=name, coef = "Intercept")
-        prior_slope <- get_prior(priors, "b", dpar=name, coef = "")
+        prior_slope <- get_prior(priors, "b", dpar=name)
         if(!is.null(prior_intercept) && !is.null(prior_slope)) {
           if(prior_intercept == prior_slope) {
             sprintf("%s ~ %s;", if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s]", name) else sprintf("b[map_%1$s_%2$d]", name, seq_len(parameters[[name]]$hierarchical$fdim)), prior_intercept)
