@@ -15,10 +15,10 @@
 The fitted values.
 }
 \description{
-Returns the fitted values for latent model parameters. This is identical to calling `predict()` without new data.
+Returns the fitted values for latent model parameters. This is identical to calling \code{predict()} without new data.
 }
 \examples{
-\dontrun{
+\donttest{
 p <- fitted(fit, variables = c("C","K"))
 colMeans(p$C)
 }

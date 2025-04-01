@@ -4,9 +4,17 @@
 \name{RStanTVA-package}
 \alias{RStanTVA}
 \alias{RStanTVA-package}
-\title{RStanTVA: TVA Models in Stan using R and StanTVA}
+\title{RStanTVA: TVA Models in 'Stan' using 'R' and 'StanTVA'}
 \description{
-This is an R package containing a Stan implementation of the Theory of Visual Attention (TVA; Bundesen, 1990; \doi{10.1037/0033-295X.97.4.523}) and numerous convenience functions for generating, compiling, fitting, and analyzing (RStan)TVA models.
+'Stan' implementation of the Theory of Visual Attention (TVA; Bundesen, 1990; \doi{10.1037/0033-295X.97.4.523}) and numerous convenience functions for generating, compiling, fitting, and analyzing TVA models.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/mmrabe/RStanTVA}
+  \item Report bugs at \url{https://github.com/mmrabe/RStanTVA/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Maximilian M. Rabe \email{maximilian.rabe@uni-potsdam.de} (\href{https://orcid.org/0000-0002-2556-5644}{ORCID})

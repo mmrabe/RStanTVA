@@ -16,8 +16,8 @@ The fixed effects.
 Returns the fixed effects for a StanTVA fit object.
 }
 \examples{
-\dontrun{
-fixef <- fixef(fit)
-fixef
+\donttest{
+fixed_effects <- fixef(fit)
+fixed_effects
 }
 }

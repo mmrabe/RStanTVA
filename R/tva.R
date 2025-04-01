@@ -78,7 +78,7 @@ stantva_path <- function() {
 #' @param ... Additional arguments passed to \code{\link[readr:read_table]{read_table()}}.
 #' @return A TVA data object, which inherits from \code{data.frame}.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' data <- read_tva_data("data.dat")
 #' data
 #' }
@@ -107,8 +107,9 @@ read_tva_data <- function(file, set = LETTERS, ...) {
 #' @param data The TVA data object.
 #' @param file The file name.
 #' @param ... Additional arguments passed to \code{\link[readr:write_tsv]{write_tsv()}}.
+#' @return No return value, called for side effects.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' data <- read_tva_data("data.dat")
 #' write_tva_data(data, "data.dat")
 #' }
@@ -144,10 +145,10 @@ setGeneric("model_code", function(object, type) UseMethod("model_code"))
 #' @describeIn model_code method
 #' @description Extracts the Stan code from a StanTVA model object.
 #' @param object A StanTVA model object or fit.
-#' @param type The type of code to return (`stan`: formatted StanTVA, `stan2`: ready-to-compile Stan code, `cpp`: generated C++ code).
-#' @return A RStanTVA model code object (`stan`), or a string containing the code (`stan2` or `cpp`).
+#' @param type The type of code to return (\code{stan}: formatted StanTVA, \code{stan2}: ready-to-compile Stan code, \code{cpp}: generated C++ code).
+#' @return A RStanTVA model code object (\code{stan}), or a string containing the code (\code{stan2} or \code{cpp}).
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' model <- stantva_model(locations = 2)
 #' model_code(model)
 #' }
@@ -361,7 +362,7 @@ parse_formula <- function(f) {
 #' @description Creates a StanTVA model code object.
 #' @param formula Optional formulas for nested and hierarchical model parameters.
 #' @param locations The number of display locations (items).
-#' @param task The task. Currently implemented: `wr` (whole report) and `pr` (partial report)
+#' @param task The task. Currently implemented: \code{wr} (whole report) and \code{pr} (partial report)
 #' @param regions An optional list of groups of display locations (regions).
 #' @param C_mode The mode/family for the $C$ parameter.
 #' @param w_mode The mode/family for the $w$ parameter.
@@ -1224,7 +1225,7 @@ setMethod("show", "stantvacode", function(object) {
 #'@param contrasts Any contrasts specified to factors in the data set.
 #'@return The StanTVA fit object.
 #'@examples
-#'\dontrun{
+#'\donttest{
 #'data <- read_tva_data("data.dat")
 #'model <- stantva_code(locations = 6)
 #'fit <- stancsv2stantvafit("chain1.csv", data, model)
@@ -1251,7 +1252,7 @@ stancsv2stantvafit <- function(csv_file, data, model, contrasts = list()) {
 #' @param stan_options The Stan options, passed to \code{\link[rstan:stan_model]{stan_model()}}
 #' @return The StanTVA model object.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' model <- stantva_model(locations = 2, task = "pr")
 #' model
 #' }
@@ -1273,12 +1274,13 @@ stantva_model <- function(..., stan_options = list()) {
 #' @description Writes a StanTVA model to a file.
 #' @param model The StanTVA model object.
 #' @param file The file name.
+#' @return No return value, called for side effects.
 #' @examples
-#' \dontrun{write_stantva_model(model, "model.stan")}
+#' \donttest{write_stantva_model(model, "model.stan")}
 #'@export
 write_stantva_model <- function(model, file = stdout()) {
   code <- if(inherits(model, "stantvamodel") || inherits(model, "stantvafit")) {
-    model_code(model)
+    model@code
   } else if(inherits(model, "stantvacode")) {
     model
   } else {
@@ -1307,7 +1309,7 @@ setClass("stantvafit", contains = "stanfit", slots = c("stanmodel" = "stantvamod
 #' @param object The StanTVA model object.
 #' @return The printed object.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' model <- stantva_model(locations = 4)
 #' show(model)
 #' }
@@ -1355,7 +1357,7 @@ fix_cmdstanr_output <- function(fp) {
 
 #'Draw posterior samples from an RStanTVA model
 #'
-#'Draw samples from the model defined by `object`.
+#'Draw samples from the model defined by \code{object}.
 #'@export
 setGeneric("sampling")
 
@@ -1367,11 +1369,12 @@ setGeneric("optimizing")
 
 #'@describeIn sampling method
 #'@param object The StanTVA model object.
-#'@param data The data to which the model should be fitted, usually a `data.frame`.
+#'@param data The data to which the model should be fitted, usually a \code{data.frame}.
 #'@param init How to initialize the individual chains, see \code{\link[rstan:sampling]{rstan::sampling()}}. Note that for \code{random}, any lower-level hierarchical (e.g., subject-level) parameters are initialized to zero.
-#'@param backend Which backend to use for fitting (default: `rstan`)
-#'@param cpp_options Which options to pass to `stan_model()` for compiling the C++ code.
+#'@param backend Which backend to use for fitting (default: \code{rstan})
+#'@param cpp_options Which options to pass to \code{stan_model()} for compiling the C++ code.
 #'@param ... Further arguments passed to the sampling handler of the specified backend.
+#'@return Returns a \code{stantva_fit} object, which inherits from \code{\link[rstan:stanfit]{stanfit}}, representing the fit of \code{object} to \code{data}.
 #'@export
 setMethod("sampling", c(object = "stantvamodel"), function(object, data,init = "random", ..., backend = c("rstan","cmdstanr","cmdstanr_mpi"), cpp_options = if(match.arg(backend) == "cmdstanr") list(stan_threads = object@code@config$parallel) else if(match.arg(backend) == "cmdstanr_mpi") list(CXX = "mpicxx", TBB_CXX_TYPE = "gcc", STAN_MPI = TRUE)) {
   if(object@code@config$locations != ncol(data$S)) stop("Cannot fit a StanTVA model compiled for ",object@code@config$locations," location(s) to a data set with ",ncol(data$S)," location(s)!")
@@ -1424,9 +1427,10 @@ setMethod("sampling", c(object = "stantvamodel"), function(object, data,init = "
 
 #'@describeIn optimizing method
 #'@param object The StanTVA model object.
-#'@param data The data to which the model should be fitted, usually a `data.frame`.
+#'@param data The data to which the model should be fitted, usually a \code{data.frame}.
 #'@param init How to initialize the individual chains, see \code{\link[rstan:optimizing]{rstan::optimizing()}}. Note that for \code{random}, any lower-level hierarchical (e.g., subject-level) parameters are initialized to zero.
 #'@param ... Further arguments passed to \code{\link[rstan:optimizing]{rstan::optimizing()}}.
+#'@return A list, representing the maximum-likelihood estimate, see \code{\link[rstan:optimizing]{rstan::optimizing()}}.
 #'@export
 setMethod("optimizing", c(object = "stantvamodel"), function(object, data, init, ...) {
   if(object@code@config$locations != ncol(data$S)) stop("Cannot fit a StanTVA model compiled for ",object@code@config$locations," location(s) to a data set with ",ncol(data$S)," location(s)!")
@@ -1453,7 +1457,7 @@ setMethod("optimizing", c(object = "stantvamodel"), function(object, data, init,
 #' @param object The StanTVA fit.
 #' @return The pointwise log likelihood.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' loglik <- logLik(model, data, params)
 #' loglik
 #' }
@@ -1501,7 +1505,7 @@ setMethod("logLik", "stantvafit", function(object) {
 #' @param files The file names.
 #' @return The StanTVA fit object.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' fit <- read_stantva_fit(c("chain1.rds", "chain2.rds"))
 #' fit
 #' }
@@ -1540,8 +1544,9 @@ read_stantva_fit <- function(files) {
 #' @param fit The StanTVA fit object.
 #' @param file The file name.
 #' @param ... Additional arguments passed to \code{\link[base:saveRDS]{saveRDS()}}.
+#' @return No return value, called for side effects.
 #' @examples
-#' \dontrun{write_stantva_fit(fit, "fit.rds")}
+#' \donttest{write_stantva_fit(fit, "fit.rds")}
 #' @export
 write_stantva_fit <- function(fit, file, ...) if(inherits(fit, "stantvafit")) saveRDS(fit, file, ...) else stop("`fit` must be a `stantvafit` object!")
 
@@ -1553,9 +1558,9 @@ alias.stantvafit <- function(object) {
 #' @title Retrieve parameters aliases
 #' @description Returns the StanTVA parameter aliases for the underlying RStan fit.
 #' @param object The StanTVA fit object.
-#' @return The par
+#' @return A character vector of parameter aliases.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' al <- alias(fit)
 #' al
 #' }
@@ -1583,9 +1588,9 @@ fixef.stantvafit <- function(object) {
 #' @param object The StanTVA fit object.
 #' @return The fixed effects.
 #' @examples
-#' \dontrun{
-#' fixef <- fixef(fit)
-#' fixef
+#' \donttest{
+#' fixed_effects <- fixef(fit)
+#' fixed_effects
 #' }
 #'@export
 setMethod("fixef", "stantvafit", fixef.stantvafit)
@@ -1637,9 +1642,9 @@ ranef.stantvafit <- function(object) {
 #' @param object The StanTVA fit object.
 #' @return The fixed effects.
 #' @examples
-#' \dontrun{
-#' fixef <- fixef(fit)
-#' fixef
+#' \donttest{
+#' random_effects <- ranef(fit)
+#' random_effects
 #' }
 #'@export
 setMethod("ranef", "stantvafit", ranef.stantvafit)
@@ -1669,7 +1674,7 @@ coef.stanfit <- function(object) {
 #' @param object The StanTVA fit object.
 #' @return The model coefficients, grouped by random factors.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' fixef <- coef(fit)
 #' fixef
 #' }
@@ -1736,7 +1741,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
 #' @param variables The names of the parameters to predict.
 #' @return The predictions.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' p <- predict(fit, variables = c("C","K"))
 #' colMeans(p$C)
 #' }
@@ -1750,12 +1755,12 @@ fitted.stantvafit <- function(object, variables = names(object@stanmodel@code@df
 
 
 #' @title Retrieve fitted parameter values
-#' @description Returns the fitted values for latent model parameters. This is identical to calling `predict()` without new data.
+#' @description Returns the fitted values for latent model parameters. This is identical to calling \code{predict()} without new data.
 #' @param object The StanTVA fit object.
 #' @param variables The names of the parameters to retrieve.
 #' @return The fitted values.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' p <- fitted(fit, variables = c("C","K"))
 #' colMeans(p$C)
 #' }
@@ -1785,9 +1790,9 @@ setMethod("show", "stantvafit", function(object) print(object))
 #' @param x The StanTVA fit object.
 #' @param digits_summary The number of significant digits to display in posterior summaries.
 #' @param ... Currently not used.
-#' @return The printed object.
+#' @return Returns \code{x}. Usually called for its side effects (printing to the console).
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' print(fit)
 #' }
 #'@export

@@ -13,11 +13,14 @@ write_tva_data(data, file, ...)
 
 \item{...}{Additional arguments passed to \code{\link[readr:write_tsv]{write_tsv()}}.}
 }
+\value{
+No return value, called for side effects.
+}
 \description{
 Writes TVA data to a file.
 }
 \examples{
-\dontrun{
+\donttest{
 data <- read_tva_data("data.dat")
 write_tva_data(data, "data.dat")
 }

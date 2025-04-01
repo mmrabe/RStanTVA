@@ -16,7 +16,7 @@ The pointwise log likelihood.
 Returns the pointwise log-likelihood of a StanTVA fit.
 }
 \examples{
-\dontrun{
+\donttest{
 loglik <- logLik(model, data, params)
 loglik
 }

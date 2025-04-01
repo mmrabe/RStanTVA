@@ -11,9 +11,12 @@ write_stantva_model(model, file = stdout())
 
 \item{file}{The file name.}
 }
+\value{
+No return value, called for side effects.
+}
 \description{
 Writes a StanTVA model to a file.
 }
 \examples{
-\dontrun{write_stantva_model(model, "model.stan")}
+\donttest{write_stantva_model(model, "model.stan")}
 }

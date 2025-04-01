@@ -14,9 +14,12 @@ optimizing(object, ...)
 
 \item{...}{Further arguments passed to \code{\link[rstan:optimizing]{rstan::optimizing()}}.}
 
-\item{data}{The data to which the model should be fitted, usually a `data.frame`.}
+\item{data}{The data to which the model should be fitted, usually a \code{data.frame}.}
 
 \item{init}{How to initialize the individual chains, see \code{\link[rstan:optimizing]{rstan::optimizing()}}. Note that for \code{random}, any lower-level hierarchical (e.g., subject-level) parameters are initialized to zero.}
+}
+\value{
+A list, representing the maximum-likelihood estimate, see \code{\link[rstan:optimizing]{rstan::optimizing()}}.
 }
 \description{
 Obtain a point estimate by maximizing the joint posterior from the StanTVA model.

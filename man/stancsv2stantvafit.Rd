@@ -22,7 +22,7 @@ The StanTVA fit object.
 This function may be used to read an RStan or CmdStan fit from CSV files. Note that you also need to provide the fitted model.
 }
 \examples{
-\dontrun{
+\donttest{
 data <- read_tva_data("data.dat")
 model <- stantva_code(locations = 6)
 fit <- stancsv2stantvafit("chain1.csv", data, model)

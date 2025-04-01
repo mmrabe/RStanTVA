@@ -14,13 +14,13 @@
 \item{...}{Currently not used.}
 }
 \value{
-The printed object.
+Returns \code{x}. Usually called for its side effects (printing to the console).
 }
 \description{
 Prints a StanTVA fit object.
 }
 \examples{
-\dontrun{
+\donttest{
 print(fit)
 }
 }

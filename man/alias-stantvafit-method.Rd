@@ -10,13 +10,13 @@
 \item{object}{The StanTVA fit object.}
 }
 \value{
-The par
+A character vector of parameter aliases.
 }
 \description{
 Returns the StanTVA parameter aliases for the underlying RStan fit.
 }
 \examples{
-\dontrun{
+\donttest{
 al <- alias(fit)
 al
 }

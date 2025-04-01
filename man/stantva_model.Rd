@@ -18,7 +18,7 @@ The StanTVA model object.
 Creates a StanTVA model object.
 }
 \examples{
-\dontrun{
+\donttest{
 model <- stantva_model(locations = 2, task = "pr")
 model
 }

@@ -27,7 +27,7 @@ stantva_code(
 
 \item{locations}{The number of display locations (items).}
 
-\item{task}{The task. Currently implemented: `wr` (whole report) and `pr` (partial report)}
+\item{task}{The task. Currently implemented: \code{wr} (whole report) and \code{pr} (partial report)}
 
 \item{regions}{An optional list of groups of display locations (regions).}
 

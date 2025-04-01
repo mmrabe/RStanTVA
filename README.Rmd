@@ -48,7 +48,7 @@ tva_data
 
 Generate a StanTVA model for partial report of 6 display locations with Gaussian $t_0$ and a free $K$ distribution:
 
-```{r example-model, warning=FALSE}
+```{r example-model, warning=FALSE, message=FALSE}
 library(RStanTVA)
 
 tva_model <- stantva_model(
@@ -60,8 +60,11 @@ tva_model <- stantva_model(
   sanity_checks = FALSE
 )
 
-tva_model
+```
 
+
+```{r}
+tva_model
 ```
 
 
@@ -82,11 +85,72 @@ tva_fit_mle$par[c("C","alpha","mu0","sigma0")]
 
 Fit `tva_model` to the `tva_data` using maximum-likelihood estimation (MLE):
 
-```{r example-fit}
+```{r example-fit, eval=FALSE}
 tva_fit <- sampling(tva_model, tva_data)
 tva_fit
 ```
 
+```{r show-example-fit, echo=FALSE}
+#readRDS("tva_fit.rds")
+```
 
 
+Generate a hierarchical TVA model:
+
+```{r example-hierarchical, warning=FALSE, message=FALSE}
+
+rstan_options(threads_per_chain = parallel::detectCores())
+
+
+priors <-
+  prior(normal(0,.07),dpar=C)+
+  prior(normal(4,.2),dpar=C,coef=Intercept)+
+  prior(normal(0,.07),dpar=alpha)+
+  prior(normal(-0.2,.1),dpar=alpha,coef=Intercept)+
+  prior(normal(0,.03),dpar=pK)+
+  prior(normal(0,.1),dpar=pK,coef=Intercept)+
+  prior(normal(0,5),dpar=mu0)+
+  prior(normal(30,15),dpar=mu0,coef=Intercept)+
+  prior(normal(0,.04),dpar=sigma0)+
+  prior(normal(0,.2),dpar=sigma0,coef=Intercept)+
+  prior(normal(0,.05),dpar=w)+
+  prior(normal(0,0.1),dpar=w,coef=Intercept)
+
+tva_hierarchical_model <- stantva_model(
+  formula = list(
+    log(C) ~ 1 + (1 | C_alpha | subject),
+    log(w) ~ 1 + (1 | subject),
+    log(pK) ~ 1 + (1 | subject),
+    mu0 ~ 1 + (1 | subject),
+    log(sigma0) ~ 1 + (1 | subject),
+    log(alpha) ~ 1 + (1 | C_alpha | subject)
+  ),
+  location = 4,
+  task = "pr",
+  w_mode = "locations",
+  t0_mode = "gaussian",
+  K_mode = "free",
+  priors = priors,
+  sanity_checks = FALSE,
+  parallel = TRUE
+)
+
+```
+
+
+Fit hierarchical `tva_hierarchical_model` to the first 200 trials of the first 10 subjects of `tva_recovery`:
+
+```{r show-hierarchical-fit, eval=FALSE}
+
+tva_hierarchical_subset <- tva_recovery %>% filter(subject <= 10 & trial <= 200)
+
+tva_hierarchical_fit <- sampling(tva_hierarchical_model, tva_hierarchical_subset, cores = 4, chains = 4, refresh = 20)
+
+tva_hierarchical_fit
+
+```
+
+```{r show-hierarchical-fit-hidden, echo=FALSE}
+readRDS("tva_hierarchical_fit.rds")
+```
 

@@ -92,21 +92,9 @@ tva_model <- stantva_model(
   K_mode = "free",
   sanity_checks = FALSE
 )
-#> Trying to compile a simple C file
-#> Running /Library/Frameworks/R.framework/Resources/bin/R CMD SHLIB foo.c
-#> using C compiler: ‘Apple clang version 16.0.0 (clang-1600.0.26.6)’
-#> using SDK: ‘MacOSX15.2.sdk’
-#> clang -arch arm64 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/Rcpp/include/"  -I"/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/RcppEigen/include/"  -I"/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/RcppEigen/include/unsupported"  -I"/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/BH/include" -I"/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/StanHeaders/include/src/"  -I"/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/StanHeaders/include/"  -I"/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/RcppParallel/include/"  -I"/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/rstan/include" -DEIGEN_NO_DEBUG  -DBOOST_DISABLE_ASSERTS  -DBOOST_PENDING_INTEGER_LOG2_HPP  -DSTAN_THREADS  -DUSE_STANC3 -DSTRICT_R_HEADERS  -DBOOST_PHOENIX_NO_VARIADIC_EXPRESSION  -D_HAS_AUTO_PTR_ETC=0  -include '/Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/StanHeaders/include/stan/math/prim/fun/Eigen.hpp'  -D_REENTRANT -DRCPP_PARALLEL_USE_TBB=1   -I/opt/R/arm64/include    -fPIC  -falign-functions=64 -Wall -g -O2  -c foo.c -o foo.o
-#> In file included from <built-in>:1:
-#> In file included from /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/StanHeaders/include/stan/math/prim/fun/Eigen.hpp:22:
-#> In file included from /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/RcppEigen/include/Eigen/Dense:1:
-#> In file included from /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/RcppEigen/include/Eigen/Core:19:
-#> /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/library/RcppEigen/include/Eigen/src/Core/util/Macros.h:679:10: fatal error: 'cmath' file not found
-#>   679 | #include <cmath>
-#>       |          ^~~~~~~
-#> 1 error generated.
-#> make: *** [foo.o] Error 1
+```
 
+``` r
 tva_model
 #> StanTVA model with 6 free parameter(s) and the following configuration:
 #>   - locations = 4
@@ -220,7 +208,7 @@ Fit `tva_model` to the `tva_data` using maximum-likelihood estimation
 tva_fit_mle <- optimizing(tva_model, tva_data)
 tva_fit_mle$par[c("C","alpha","mu0","sigma0")]
 #>          C      alpha        mu0     sigma0 
-#> 77.5144282  0.5931664 21.9278293 13.1074409
+#> 77.5300589  0.5932424 21.9315554 13.1077232
 ```
 
 Fit `tva_model` to the `tva_data` using maximum-likelihood estimation
@@ -228,138 +216,121 @@ Fit `tva_model` to the `tva_data` using maximum-likelihood estimation
 
 ``` r
 tva_fit <- sampling(tva_model, tva_data)
-#> 
-#> SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 1).
-#> Chain 1: 
-#> Chain 1: Gradient evaluation took 0.007821 seconds
-#> Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 78.21 seconds.
-#> Chain 1: Adjust your expectations accordingly!
-#> Chain 1: 
-#> Chain 1: 
-#> Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
-#> Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
-#> Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
-#> Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
-#> Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
-#> Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-#> Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-#> Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-#> Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-#> Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-#> Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-#> Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
-#> Chain 1: 
-#> Chain 1:  Elapsed Time: 103.694 seconds (Warm-up)
-#> Chain 1:                86.576 seconds (Sampling)
-#> Chain 1:                190.27 seconds (Total)
-#> Chain 1: 
-#> 
-#> SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 2).
-#> Chain 2: 
-#> Chain 2: Gradient evaluation took 0.006995 seconds
-#> Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 69.95 seconds.
-#> Chain 2: Adjust your expectations accordingly!
-#> Chain 2: 
-#> Chain 2: 
-#> Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
-#> Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
-#> Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
-#> Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
-#> Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
-#> Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-#> Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-#> Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-#> Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-#> Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-#> Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-#> Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
-#> Chain 2: 
-#> Chain 2:  Elapsed Time: 96.243 seconds (Warm-up)
-#> Chain 2:                63.855 seconds (Sampling)
-#> Chain 2:                160.098 seconds (Total)
-#> Chain 2: 
-#> 
-#> SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 3).
-#> Chain 3: 
-#> Chain 3: Gradient evaluation took 0.007001 seconds
-#> Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 70.01 seconds.
-#> Chain 3: Adjust your expectations accordingly!
-#> Chain 3: 
-#> Chain 3: 
-#> Chain 3: Iteration:    1 / 2000 [  0%]  (Warmup)
-#> Chain 3: Iteration:  200 / 2000 [ 10%]  (Warmup)
-#> Chain 3: Iteration:  400 / 2000 [ 20%]  (Warmup)
-#> Chain 3: Iteration:  600 / 2000 [ 30%]  (Warmup)
-#> Chain 3: Iteration:  800 / 2000 [ 40%]  (Warmup)
-#> Chain 3: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-#> Chain 3: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-#> Chain 3: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-#> Chain 3: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-#> Chain 3: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-#> Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-#> Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
-#> Chain 3: 
-#> Chain 3:  Elapsed Time: 100.979 seconds (Warm-up)
-#> Chain 3:                91.461 seconds (Sampling)
-#> Chain 3:                192.44 seconds (Total)
-#> Chain 3: 
-#> 
-#> SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 4).
-#> Chain 4: 
-#> Chain 4: Gradient evaluation took 0.006709 seconds
-#> Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 67.09 seconds.
-#> Chain 4: Adjust your expectations accordingly!
-#> Chain 4: 
-#> Chain 4: 
-#> Chain 4: Iteration:    1 / 2000 [  0%]  (Warmup)
-#> Chain 4: Iteration:  200 / 2000 [ 10%]  (Warmup)
-#> Chain 4: Iteration:  400 / 2000 [ 20%]  (Warmup)
-#> Chain 4: Iteration:  600 / 2000 [ 30%]  (Warmup)
-#> Chain 4: Iteration:  800 / 2000 [ 40%]  (Warmup)
-#> Chain 4: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-#> Chain 4: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-#> Chain 4: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-#> Chain 4: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-#> Chain 4: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-#> Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-#> Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
-#> Chain 4: 
-#> Chain 4:  Elapsed Time: 98.614 seconds (Warm-up)
-#> Chain 4:                105.161 seconds (Sampling)
-#> Chain 4:                203.775 seconds (Total)
-#> Chain 4:
 tva_fit
-#> StanTVA model with 6 free parameter(s), fitted with 4  chains, each with iter=2000; warmup=1000; thin=1
-#> 
-#> Model configuration:
-#> locations = 4
-#> task = "pr"
-#> regions = list()
-#> C_mode = "equal"
-#> w_mode = "locations"
-#> t0_mode = "gaussian"
-#> K_mode = "free"
-#> max_K = 4
-#> allow_guessing = FALSE
-#> parallel = FALSE
-#> save_log_lik = FALSE
-#> sanity_checks = FALSE
-#> debug_neginf_loglik = FALSE
-#> Warning: Unknown or uninitialised column: `param`.
-#> 
-#> Global parameters:
-#>         mean se_mean    sd  2.5%   25%   50%   75%  97.5%   n_eff Rhat
-#> C      81.91    0.39 18.61 52.90 68.71 79.25 92.25 124.91 2239.17    1
-#> w[1]    0.30    0.00  0.02  0.26  0.28  0.30  0.31   0.34 5021.88    1
-#> w[2]    0.29    0.00  0.02  0.25  0.28  0.29  0.31   0.34 4434.08    1
-#> w[3]    0.19    0.00  0.02  0.16  0.18  0.19  0.21   0.23 5305.05    1
-#> w[4]    0.21    0.00  0.02  0.18  0.20  0.21  0.23   0.25 5375.13    1
-#> pK[1]   0.16    0.00  0.02  0.12  0.15  0.16  0.18   0.21 4377.73    1
-#> pK[2]   0.18    0.00  0.02  0.14  0.17  0.18  0.20   0.23 4227.23    1
-#> pK[3]   0.28    0.00  0.03  0.22  0.26  0.28  0.30   0.34 4741.19    1
-#> pK[4]   0.20    0.00  0.03  0.15  0.18  0.20  0.22   0.26 4519.14    1
-#> pK[5]   0.17    0.00  0.03  0.12  0.15  0.17  0.19   0.24 3706.31    1
-#> mu0    21.65    0.11  4.79 11.59 18.55 21.93 25.08  30.34 1872.49    1
-#> sigma0 13.39    0.06  3.14  6.81 11.47 13.47 15.41  19.55 2366.34    1
-#> alpha   0.62    0.00  0.15  0.36  0.52  0.61  0.72   0.97 3867.74    1
 ```
+
+Generate a hierarchical TVA model:
+
+``` r
+
+rstan_options(threads_per_chain = parallel::detectCores())
+
+
+priors <-
+  prior(normal(0,.07),dpar=C)+
+  prior(normal(4,.2),dpar=C,coef=Intercept)+
+  prior(normal(0,.07),dpar=alpha)+
+  prior(normal(-0.2,.1),dpar=alpha,coef=Intercept)+
+  prior(normal(0,.03),dpar=pK)+
+  prior(normal(0,.1),dpar=pK,coef=Intercept)+
+  prior(normal(0,5),dpar=mu0)+
+  prior(normal(30,15),dpar=mu0,coef=Intercept)+
+  prior(normal(0,.04),dpar=sigma0)+
+  prior(normal(0,.2),dpar=sigma0,coef=Intercept)+
+  prior(normal(0,.05),dpar=w)+
+  prior(normal(0,0.1),dpar=w,coef=Intercept)
+
+tva_hierarchical_model <- stantva_model(
+  formula = list(
+    log(C) ~ 1 + (1 | C_alpha | subject),
+    log(w) ~ 1 + (1 | subject),
+    log(pK) ~ 1 + (1 | subject),
+    mu0 ~ 1 + (1 | subject),
+    log(sigma0) ~ 1 + (1 | subject),
+    log(alpha) ~ 1 + (1 | C_alpha | subject)
+  ),
+  location = 4,
+  task = "pr",
+  w_mode = "locations",
+  t0_mode = "gaussian",
+  K_mode = "free",
+  priors = priors,
+  sanity_checks = FALSE,
+  parallel = TRUE
+)
+```
+
+Fit hierarchical `tva_hierarchical_model` to the first 200 trials of the
+first 10 subjects of `tva_recovery`:
+
+``` r
+
+tva_hierarchical_subset <- tva_recovery %>% filter(subject <= 10 & trial <= 200)
+
+tva_hierarchical_fit <- sampling(tva_hierarchical_model, tva_hierarchical_subset, cores = 4, chains = 4, refresh = 20)
+
+tva_hierarchical_fit
+```
+
+    #> StanTVA model with 6 free parameter(s), fitted with 4  chains, each with iter=2000; warmup=1000; thin=1
+    #> 
+    #> Model configuration:
+    #> formula = list(log(C) ~ 1 + (1 | C_alpha | subject), log(w) ~ 1 + (1 | subject), log(pK) ~ 1 + (1 | subject), mu0 ~ 1 + (1 | subject), log(sigma0) ~ 1 + (1 | subject), log(alpha) ~ 1 + (1 | C_alpha | subject))
+    #> locations = 4
+    #> task = "pr"
+    #> regions = list()
+    #> C_mode = "equal"
+    #> w_mode = "locations"
+    #> t0_mode = "gaussian"
+    #> K_mode = "free"
+    #> max_K = 4
+    #> allow_guessing = FALSE
+    #> parallel = TRUE
+    #> save_log_lik = FALSE
+    #> priors = structure(list(prior = c("normal(0, 0.07)", "normal(4, 0.2)", "normal(0, 0.07)", "normal(-0.2, 0.1)", "normal(0, 0.03)", "normal(0, 0.1)", "normal(0, 5)", "normal(30, 15)", "normal(0, 0.04)", "normal(0, 0.2)", "normal(0, 0.05)", "normal(0, 0.1)"), class = c("b", "b", "b", "b", "b", "b", "b", "b", "b", "b", "b", "b"), coef = c("", "Intercept", "", "Intercept", "", "Intercept", "", "Intercept", "", "Intercept", "", "Intercept"), group = c("", "", "", "", "", "", "", "", "", "", "", ""), resp = c("",  "", "", "", "", "", "", "", "", "", "", ""), dpar = c("C", "C", "alpha", "alpha", "pK", "pK", "mu0", "mu0", "sigma0", "sigma0", "w", "w"), nlpar = c("", "", "", "", "", "", "", "", "", "", "", ""), lb = c(NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_), ub = c(NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_,  NA_character_, NA_character_, NA_character_, NA_character_), source = c("user", "user", "user", "user", "user", "user", "user", "user", "user", "user", "user", "user")), row.names = c(NA, -12L), class = c("brmsprior", "data.frame"))
+    #> sanity_checks = FALSE
+    #> debug_neginf_loglik = FALSE
+    #> 
+    #> Fixed effects:
+    #>                   mean se_mean   sd  2.5%   25%   50%   75% 97.5%   n_eff Rhat
+    #> C_Intercept       3.97    0.00 0.08  3.82  3.92  3.96  4.01  4.12 2108.39    1
+    #> w_Intercept[1]    0.14    0.00 0.05  0.03  0.10  0.14  0.18  0.25 2437.63    1
+    #> w_Intercept[2]    0.07    0.00 0.06 -0.04  0.03  0.07  0.11  0.18 4018.12    1
+    #> w_Intercept[3]    0.01    0.00 0.06 -0.11 -0.03  0.00  0.05  0.13 1987.49    1
+    #> pK_Intercept[1]  -0.10    0.00 0.07 -0.25 -0.15 -0.10 -0.05  0.04 3207.99    1
+    #> pK_Intercept[2]  -0.22    0.00 0.08 -0.37 -0.27 -0.22 -0.17 -0.06 2705.03    1
+    #> pK_Intercept[3]   0.32    0.00 0.09  0.14  0.26  0.32  0.39  0.50 1246.13    1
+    #> pK_Intercept[4]   0.06    0.00 0.08 -0.10  0.01  0.07  0.12  0.23 2855.05    1
+    #> mu0_Intercept     8.50    0.01 0.53  7.43  8.16  8.50  8.84  9.54 2262.46    1
+    #> sigma0_Intercept  0.15    0.00 0.22 -0.26  0.00  0.16  0.30  0.57 3568.73    1
+    #> alpha_Intercept  -0.35    0.00 0.08 -0.50 -0.39 -0.35 -0.30 -0.20 4555.10    1
+    #> 
+    #> Hyperparameters on random effects (subject level, N = 10):
+    #>                                                  mean se_mean   sd  2.5%   25%
+    #> sd(C_subject_Intercept)                          0.17    0.00 0.05  0.06  0.14
+    #> sd(alpha_subject_Intercept)                      0.08    0.00 0.06  0.01  0.03
+    #> sd(w_subject_Intercept[1])                       0.06    0.00 0.05  0.01  0.03
+    #> sd(w_subject_Intercept[2])                       0.09    0.00 0.06  0.01  0.04
+    #> sd(w_subject_Intercept[3])                       0.14    0.00 0.06  0.02  0.09
+    #> sd(pK_subject_Intercept[1])                      0.11    0.00 0.07  0.01  0.06
+    #> sd(pK_subject_Intercept[2])                      0.09    0.00 0.06  0.01  0.05
+    #> sd(pK_subject_Intercept[3])                      0.21    0.00 0.09  0.04  0.15
+    #> sd(pK_subject_Intercept[4])                      0.08    0.00 0.06  0.01  0.04
+    #> sd(mu0_subject_Intercept)                        0.09    0.01 0.07  0.01  0.04
+    #> sd(sigma0_subject_Intercept)                     0.11    0.01 0.07  0.01  0.05
+    #> cor(C_subject_Intercept,alpha_subject_Intercept) 0.01    0.01 0.37 -0.68 -0.25
+    #>                                                   50%  75% 97.5%   n_eff Rhat
+    #> sd(C_subject_Intercept)                          0.17 0.20  0.27 1263.38 1.00
+    #> sd(alpha_subject_Intercept)                      0.07 0.11  0.22  175.05 1.03
+    #> sd(w_subject_Intercept[1])                       0.05 0.09  0.18  174.37 1.03
+    #> sd(w_subject_Intercept[2])                       0.08 0.13  0.21  247.85 1.02
+    #> sd(w_subject_Intercept[3])                       0.13 0.18  0.26  422.90 1.01
+    #> sd(pK_subject_Intercept[1])                      0.10 0.16  0.26  286.77 1.01
+    #> sd(pK_subject_Intercept[2])                      0.08 0.13  0.23  234.36 1.02
+    #> sd(pK_subject_Intercept[3])                      0.22 0.27  0.38  433.53 1.01
+    #> sd(pK_subject_Intercept[4])                      0.07 0.12  0.21  206.43 1.02
+    #> sd(mu0_subject_Intercept)                        0.08 0.13  0.25  120.92 1.06
+    #> sd(sigma0_subject_Intercept)                     0.10 0.15  0.29  169.21 1.04
+    #> cor(C_subject_Intercept,alpha_subject_Intercept) 0.02 0.28  0.70 1906.34 1.00
+    #> Warning in .local(x, ...): Model did not converge (Rhat >= 1.05) for 1
+    #> parameter(s): sd(mu0_subject_Intercept)

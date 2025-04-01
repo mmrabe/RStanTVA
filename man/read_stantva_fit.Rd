@@ -16,7 +16,7 @@ The StanTVA fit object.
 Reads a StanTVA fit object from one or more files. If multiple files are given, the fits will be combined into a single fit object (e.g., combining separately fitted chains).
 }
 \examples{
-\dontrun{
+\donttest{
 fit <- read_stantva_fit(c("chain1.rds", "chain2.rds"))
 fit
 }

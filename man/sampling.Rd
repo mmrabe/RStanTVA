@@ -23,16 +23,19 @@ sampling(object, ...)
 
 \item{...}{Further arguments passed to the sampling handler of the specified backend.}
 
-\item{data}{The data to which the model should be fitted, usually a `data.frame`.}
+\item{data}{The data to which the model should be fitted, usually a \code{data.frame}.}
 
 \item{init}{How to initialize the individual chains, see \code{\link[rstan:sampling]{rstan::sampling()}}. Note that for \code{random}, any lower-level hierarchical (e.g., subject-level) parameters are initialized to zero.}
 
-\item{backend}{Which backend to use for fitting (default: `rstan`)}
+\item{backend}{Which backend to use for fitting (default: \code{rstan})}
 
-\item{cpp_options}{Which options to pass to `stan_model()` for compiling the C++ code.}
+\item{cpp_options}{Which options to pass to \code{stan_model()} for compiling the C++ code.}
+}
+\value{
+Returns a \code{stantva_fit} object, which inherits from \code{\link[rstan:stanfit]{stanfit}}, representing the fit of \code{object} to \code{data}.
 }
 \description{
-Draw samples from the model defined by `object`.
+Draw samples from the model defined by \code{object}.
 }
 \section{Functions}{
 \itemize{

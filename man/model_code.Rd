@@ -15,10 +15,10 @@ model_code(object, type)
 \arguments{
 \item{object}{A StanTVA model object or fit.}
 
-\item{type}{The type of code to return (`stan`: formatted StanTVA, `stan2`: ready-to-compile Stan code, `cpp`: generated C++ code).}
+\item{type}{The type of code to return (\code{stan}: formatted StanTVA, \code{stan2}: ready-to-compile Stan code, \code{cpp}: generated C++ code).}
 }
 \value{
-A RStanTVA model code object (`stan`), or a string containing the code (`stan2` or `cpp`).
+A RStanTVA model code object (\code{stan}), or a string containing the code (\code{stan2} or \code{cpp}).
 }
 \description{
 Extracts the Stan code from a StanTVA model object.
@@ -31,7 +31,7 @@ Extracts the Stan code from a StanTVA model object.
 
 }}
 \examples{
-\dontrun{
+\donttest{
 model <- stantva_model(locations = 2)
 model_code(model)
 }

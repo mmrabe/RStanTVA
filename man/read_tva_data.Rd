@@ -20,7 +20,7 @@ A TVA data object, which inherits from \code{data.frame}.
 Reads TVA data from a file.
 }
 \examples{
-\dontrun{
+\donttest{
 data <- read_tva_data("data.dat")
 data
 }

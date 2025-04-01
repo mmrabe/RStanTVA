@@ -13,9 +13,12 @@ write_stantva_fit(fit, file, ...)
 
 \item{...}{Additional arguments passed to \code{\link[base:saveRDS]{saveRDS()}}.}
 }
+\value{
+No return value, called for side effects.
+}
 \description{
 Writes a StanTVA fit object to a file.
 }
 \examples{
-\dontrun{write_stantva_fit(fit, "fit.rds")}
+\donttest{write_stantva_fit(fit, "fit.rds")}
 }
