@@ -1325,9 +1325,9 @@ init_sampler <- function(model, pdata) {
   mc <- if(inherits(model, "stantvamodel")) model@code else if(inherits(model, "stantvacode")) model else stop("`model` must be stantvamodel or stantvacode!")
   function(chain_id = 1) {
     if(is.null(pdata$X)) {
-      list()
+      list(.p = 0L)
     } else {
-      ret <- list()
+      ret <- list(.p = 0L)
       #ret$b <- double(ncol(pdata$X))
       #ret$b[colnames(pdata$X) == "Intercept"] <- as.array(runif(sum(colnames(pdata$X) == "Intercept"), -0.2, 0.2))
       rfs <- bind_rows(bind_rows(lapply(mc@config$formula, parse_formula))$random)
@@ -1392,7 +1392,7 @@ setMethod("sampling", c(object = "stantvamodel"), function(object, data,init = "
   } else {
     pars <- setdiff(na.omit(pars), pars_to_exclude)
   }
-  if((missing(init) || init == "random") && !is.null(pdata$X)) {
+  if((missing(init) || identical(init, "random")) && !is.null(pdata$X)) {
     init <- init_sampler(object, pdata)
   } else if(missing(init)) {
     init <- "random"
