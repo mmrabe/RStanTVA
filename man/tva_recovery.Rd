@@ -5,7 +5,7 @@
 \alias{tva_recovery}
 \title{True parameters for TVA recovery study}
 \format{
-An object of class \code{grouped_df} (inherits from \code{tbl_df}, \code{tbl}, \code{data.frame}) with 25600 rows and 9 columns.
+An object of class \code{grouped_df} (inherits from \code{tbl_df}, \code{tbl}, \code{data.frame}) with 24000 rows and 8 columns.
 }
 \usage{
 tva_recovery

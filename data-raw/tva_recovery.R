@@ -58,25 +58,38 @@ subject_ranefs <- z_subj * matrix(sd_subj, nrow = nrow(z_subj), ncol = length(sd
 
 
 tva_recovery <- crossing(
-  subject = seq_len(nrow(subject_ranefs)),
-  trial = 1:32,
   bind_rows(
     crossing(
-      T = c(10,50,100,200,300),
-      condition = factor(c("low","high")),
-      type = factor("WR")
+      subject = seq_len(nrow(subject_ranefs)),
+      trial = sprintf("WR1%02d", 1:24),
+      T = c(10,50,100,200),
+      condition = factor(c("low","high"))
+    ) %>% mutate(
+      S = matrix(1L, nrow = n(), ncol = 6),
+      D = matrix(0L, nrow = n(), ncol = 6)
     ),
     crossing(
+      subject = seq_len(nrow(subject_ranefs)),
+      trial = sprintf("WR2%02d", 1:12),
+      T = c(10,50,100,200),
+      condition = factor(c("low","high"))
+    ) %>% mutate(
+      S = t(vapply(seq_len(n()), function(i) sample(c(0L,0L,0L,0L,1L,1L)), integer(6))),
+      D = matrix(0L, nrow = n(), ncol = 6)
+    ),
+    crossing(
+      subject = seq_len(nrow(subject_ranefs)),
+      trial = sprintf("PR%03d", 1:32),
       T = c(50,100,200),
-      condition = factor(c("low","high")),
-      type = factor("PR")
+      condition = factor(c("low","high"))
+    ) %>% mutate(
+      S = matrix(1L, nrow = n(), ncol = 6),
+      D = t(vapply(seq_len(n()), function(i) sample(c(0L,0L,1L,1L,1L,1L)), integer(6)))
     )
   )
 ) %>% mutate(
-  S = matrix(1L, nrow = n(), ncol = 4),
-  D = matrix(0L, nrow = n(), ncol = 4),
-  R = matrix(NA_integer_, nrow = n(), ncol = 4)
-) %>% group_by(subject) %>% mutate(trial = seq_len(n()), true_values = tibble(t = matrix(NA_real_, n(), 6), v = matrix(NA_real_, n(), 6), t0 = NA_real_, K = NA_integer_))
+  R = matrix(NA_integer_, nrow = n(), ncol = 6)
+) %>% group_by(subject) %>% sample_n(n()) %>% mutate(trial = seq_len(n()), true_values = tibble(t = matrix(NA_real_, n(), 6), v = matrix(NA_real_, n(), 6), t0 = NA_real_, K = NA_integer_)) %>% arrange(subject, trial)
 
 contrasts(tva_recovery$condition) <- contr.treatment(levels(tva_recovery$condition), base = match("low", levels(tva_recovery$condition)))
 
@@ -101,10 +114,6 @@ subject_coefs <- crossing(
 tva_recovery$true_values <- bind_cols(tva_recovery$true_values, tva_recovery %>% dplyr::select(subject, condition) %>% left_join(subject_coefs, by = c("subject", "condition")) %>% ungroup() %>% dplyr::select(-subject,-condition))
 
 for(i in seq_len(nrow(tva_recovery))) {
-
-  if(tva_recovery$type[i] == "PR") {
-    tva_recovery$D[i,] <- sample(c(0L,0L,1L,1L))
-  }
 
   C <- tva_recovery$true_values$C[i]
   alpha <- tva_recovery$true_values$alpha[i]
