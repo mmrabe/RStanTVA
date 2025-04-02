@@ -4,3 +4,4 @@
 .Ruserdata
 /inst/extdata/recovery
 data/tva_recovery.rda
+/man/cache
