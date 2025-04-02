@@ -1,5 +1,5 @@
 #'@importFrom rstan extract stan_model sampling optimizing gqs sflist2stanfit rstan_options read_stan_csv
-#'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows rename last filter
+#'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows rename last filter transmute
 #'@importFrom tidyr pivot_longer pivot_wider crossing
 #'@importFrom readr read_table write_tsv
 #'@importFrom methods formalArgs new as callNextMethod show
@@ -1767,14 +1767,20 @@ fitted.stantvafit <- function(object, variables = names(object@stanmodel@code@df
 #'@export
 setMethod("fitted", "stantvafit", fitted.stantvafit)
 
-
+#' @title Generate typical descriptive statistics for TVA reports
+#' @description This function generates by-trial descriptive statistics, see `Value` below.
+#' @param data The TVA report data as a \code{data.frame}.
+#' @return The function returns a transmuted \code{data.frame}/\code{tibble} with columns \code{condition} (copied from \code{data}), \code{exposure} (copied from \code{data$T}), \code{n_items}, \code{n_targets}, \code{n_distractors}, and \code{score} (number of correctly reported items).
+#' @examples
+#' tva_report(tva_recovery)
+#' @export
 tva_report <- function(data) {
-  tibble(
-    condition = data$condition,
-    exposure = data$T,
-    score = as.integer(if(is.null(data$D)) rowSums(data$R == 1L & data$S == 1L) else rowSums(data$R == 1L & data$S == 1L & data$D == 0L)),
-    n_items = as.integer(rowSums(data$S == 1L)),
-    n_distractors = if(is.null(data$D)) integer(nrow(data)) else as.integer(rowSums(data$D))
+  data %>% transmute(
+    condition = .data$condition,
+    exposure = .data$T,
+    score = as.integer(if(is.null(.data$D)) rowSums(.data$R & .data$S) else rowSums(.data$R & .data$S & !.data$D)),
+    n_items = as.integer(rowSums(.data$S == 1L)),
+    n_distractors = if(is.null(.data$D)) integer(n()) else as.integer(rowSums(.data$D))
   ) %>% mutate(n_targets = .data$n_items - .data$n_distractors)
 }
 
