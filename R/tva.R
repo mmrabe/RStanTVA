@@ -1,5 +1,5 @@
 #'@importFrom rstan extract stan_model sampling optimizing gqs sflist2stanfit rstan_options read_stan_csv
-#'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows rename last filter transmute
+#'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows rename last filter transmute n
 #'@importFrom tidyr pivot_longer pivot_wider crossing
 #'@importFrom readr read_table write_tsv
 #'@importFrom methods formalArgs new as callNextMethod show
