@@ -1772,8 +1772,7 @@ setMethod("fitted", "stantvafit", fitted.stantvafit)
 #' @param data The TVA report data as a \code{data.frame}.
 #' @return The function returns a transmuted \code{data.frame}/\code{tibble} with columns \code{condition} (copied from \code{data}), \code{exposure} (copied from \code{data$T}), \code{n_items}, \code{n_targets}, \code{n_distractors}, and \code{score} (number of correctly reported items).
 #' @examples
-#' data(tva_recovery)
-#' tva_report(tva_recovery)
+#' \donttest{tva_report(tva_recovery)}
 #' @export
 tva_report <- function(data) {
   data %>% transmute(

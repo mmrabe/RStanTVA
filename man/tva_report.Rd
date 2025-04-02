@@ -16,6 +16,5 @@ The function returns a transmuted \code{data.frame}/\code{tibble} with columns \
 This function generates by-trial descriptive statistics, see `Value` below.
 }
 \examples{
-data(tva_recovery)
-tva_report(tva_recovery)
+\donttest{tva_report(tva_recovery)}
 }
