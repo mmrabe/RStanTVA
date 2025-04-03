@@ -40,17 +40,28 @@ library(RStanTVA)
 library(tidyverse)
 ```
 
-## Simple example
+## Example data set
 
-Load data of simulated subject 20 in condition `high` from the parameter recovery study data set `tva_recovery`:
+```{r load-data, cache=FALSE}
+data("tva_recovery")
+data("tva_recovery_true_params")
+```
+
+`RStanTVA` comes with a CombiTVA data set `tva_recovery` of `r max(tva_recovery$subject)` simulated subjects with `r max(tva_recovery$trial)` trials each. For each subject and trial, the true underlying parameters are known exactly, which makes it very useful for demonstrating the functionality of this package.
+
+Of the `r max(tva_recovery$trial)` trials, half were carried out under the `high` condition, and the other half under the `low` condition. Imagine that those are maybe different levels of luminance, some sort of cognitive load or so. The concrete manipulation is not really relevant but we *do* know that on average, `r sprintf("$C_\\mathrm{high}=%.1f>C_\\mathrm{low}=%.1f$",exp(tva_recovery_true_params$b["C_Intercept"]+tva_recovery_true_params$b["C_conditionhigh"]),exp(tva_recovery_true_params$b["C_Intercept"]))`, and that across subjects, `r sprintf("$\\mathrm{cor}\\left(C,\\alpha\\right)=%+.1f$",tva_recovery_true_params$r_subject["C_Intercept","alpha_Intercept"])`.
+
+
+## Simple model
+
+Like predecessor software, `RStanTVA` can be used to fit single parameters to data sets. For example, if we wanted to estimate TVA parameters to all trials of subject 20 in condition `high`, then we could first retrieve that subset from the full data set `tva_recovery`:
 
 ```{r example-data}
 tva_data <- tva_recovery %>% filter(subject == 20 & condition == "high")
 tva_data
 ```
 
-
-Generate a StanTVA model for partial report of 6 display locations with Gaussian $t_0$ and a free $K$ distribution:
+Then we can define the TVA model that we want to fit to the data. Here, we are dealing with a CombiTVA paradigm, which is effectively a set of different partial-report configurations. Let us assume a TVA model with 6 display locations, Gaussian $t_0$, and a free $K$ distribution, then we can generate it as follows:
 
 ```{r example-model, warning=FALSE, message=FALSE, results=FALSE}
 tva_model <- stantva_model(
@@ -63,13 +74,7 @@ tva_model <- stantva_model(
 )
 ```
 
-
-```{r show-model}
-tva_model
-```
-
-
-The generated Stan code looks like this:
+If we wanted to look at the generated Stan code, this would be it:
 
 ```{r show-model-code, results = 'asis', echo = FALSE}
 conf <- tva_model@code@config
@@ -79,8 +84,9 @@ write_stantva_model(do.call(stantva_code, conf))
 cat("```\n")
 ```
 
+Note that the file will include `tva.stan`, `freeK.stan`, and `gaussiant0.stan`, all of which are contained in the StanTVA library embedded in the package. While `tva.stan` contains a number of more general functions for the likelihood computation for whole and partial report paradigms, `freeK.stan` and `gaussiant0.stan` are modules that specify the free $K$ distribution and the Gaussian $t_0$ distribution, respectively. There will always be exactly three files included. While `tva.stan` is always required, the other two differ depending on the selected assumptions for $K$ and $t_0$, respectively. The includes are located at `stantva_path()` and the RStanTVA function `stantva_model()` will automatically include those when compiling.
 
-Fit `tva_model` to the `tva_data` using maximum-likelihood estimation (MLE):
+We can now fit `tva_model` to the `tva_data` using maximum-likelihood estimation (MLE):
 
 ```{r example-fit-mle}
 tva_fit_mle <- optimizing(tva_model, tva_data)
@@ -88,25 +94,27 @@ tva_fit_mle$par[c("C","alpha","mu0","sigma0")]
 ```
 
 
-Fit `tva_model` to the `tva_data` using maximum-likelihood estimation (MLE):
+... or using Bayesian HMC sampling:
 
-```{r example-fit, eval=TRUE}
+```{r example-fit, warning=FALSE, results=FALSE, message=FALSE}
 tva_fit <- sampling(tva_model, tva_data)
+```
+
+```{r show-example-fit}
 tva_fit
 ```
 
 
 ## Nested example
 
-Load data of simulated subject 20 in both condition (`high` and `low`) from the parameter recovery study data set `tva_recovery`:
+Above, we have fitted the model only to a subset of trials in one experimental condition. What is novel in `RStanTVA` is the possibility to specify all kinds of hierarchical and nested parameter structures. At first, we are now creating a subset of *all* trials of subject 20, which includes trials in both conditions `high` and `low`:
 
 ```{r example-nested-data}
 tva_data_nested <- tva_recovery %>% filter(subject == 20)
 tva_data_nested
 ```
 
-
-Generate a StanTVA model for partial report of 6 display locations with Gaussian $t_0$ and a free $K$ distribution:
+We can now define a model for partial report of 6 display locations with Gaussian $t_0$ and a free $K$ distribution, where we let $C$ vary between conditions:
 
 ```{r example-nested-model, warning=FALSE, message=FALSE, results=FALSE}
 tva_model_nested <- stantva_model(
@@ -122,7 +130,7 @@ tva_model_nested <- stantva_model(
 )
 ```
 
-Note that we are allowing $C$ to vary between experimental conditions. This will add another "layer" to the model, which implements $C$ in trial $i$, $C_i$, as:
+The "regression" formula for $C$ above will add another "layer" to the model, which implements $C$ in trial $i$, $C_i$, as:
 
 $$
 \log\left(C_i\right) = \alpha_C+\beta_CX_i
@@ -140,19 +148,23 @@ write_stantva_model(do.call(stantva_code, conf))
 cat("```\n")
 ```
 
+You can do the same with any other model parameter and with the same flexibility that you may be used to from `lme4` or `brms`. This also includes the possibility of continuous covariates to directly model effects of all kinds of biological, physical, or psychological metrics. If you do not define a such a formula for any given parameter, it will be fitted as a single invariant parameter across all trials. This can be useful if you want to keep other parameters strictly constant across conditions, e.g., in order to borrow statistical power.
 
 
-Fit `tva_model_nested` to the `tva_data_nested` using maximum-likelihood estimation (MLE):
+We can fit `tva_model_nested` to the `tva_data_nested` using maximum-likelihood estimation (MLE) or Bayesian parameter sampling in the exactly same way as above:
 
-```{r example-fit-nested, eval=TRUE}
+```{r example-fit-nested, warning=FALSE, message=FALSE, results=FALSE}
 tva_fit_nested <- sampling(tva_model_nested, tva_data_nested)
+```
+
+```{r example-show-fit-nested}
 tva_fit_nested
 ```
 
 
 ## Hierarchical example
 
-Generate a hierarchical TVA model:
+If you have the necessary computational ressources, you can also fit a single hierarchical model to the entire data set, where you can let the parameters vary not only between conditions but even between, e.g., subjects, experimenters, locations, devices, etc. As for the previous model, you may also choose to only let specific parameters vary, or just all of them. You can specify combine model covariance matrices to capture correlations between parameters (as is done below for $C$ and $alpha$):
 
 ```{r example-hierarchical, warning=FALSE, message=FALSE, results=FALSE}
 
@@ -190,17 +202,68 @@ tva_hierarchical_model <- stantva_model(
 
 ```
 
+The power of hierarchical modelling is especially apparent when dealing with sparse data. Therefore, we are here only looking at the first 100 trials of the first 10 subjects:
 
-Fit hierarchical `tva_hierarchical_model` to the first 200 trials of the first 10 subjects of the `tva_recovery` data set:
+```{r hierarchical-data}
+tva_hierarchical_subset <- tva_recovery %>% filter(subject <= 10 & trial <= 100)
+```
 
-```{r show-hierarchical-fit, eval=FALSE}
 
-tva_hierarchical_subset <- tva_recovery %>% filter(subject <= 10 & trial <= 200)
-
-tva_hierarchical_fit <- sampling(tva_hierarchical_model, tva_hierarchical_subset, refresh = 20)
-
+```{r hierarchical-fit, eval = FALSE}
+tva_hierarchical_fit <- sampling(tva_hierarchical_model, tva_hierarchical_subset)
 tva_hierarchical_fit
+```
 
+
+## Parallelization
+
+There are two ways to speed up the parameter fitting: (1) Parallel running of HMC chains, and (2) within-chain parallelization. The technical details are described in more detail in the documenation of Stan and `rstan`. You can use both, either, or none.
+
+### Parallel chains (only relevant for `sampling()`)
+
+By default, `rstan` will fit 4 chains sequentially. You can choose to have them run in parallel instead by specifying the argument `cores` to the number of chains to run in parallel. For example, to run all 4 chains in parallel, you can use:
+
+```{r parallel-chains, eval=FALSE}
+fit <- sampling(tva_model, tva_data, chains = 4, cores = 4)
+```
+
+This may not work well in some cases, e.g., when run during knitting an Rmd script.
+
+### Within-chain parallelization (relevant for both `optimizing()` and `sampling()`)
+
+You can also have the actual likelihood computation run in parallel, which will calculate the likelihood for all trials independently, scattered across separate *threads*, and ultimately aggregate them. We are using Stan's `map_rect()` function for this, which can even be used for workload distribution across several compute nodes using MPI.
+
+To take advantage of this, you need to explicitly specify the number of CPUs **before** compiling the model. This is because `stantva_model()`/`stantva_code()` will need to produce slightly different (and more complex) Stan code when using this feature. For example, if you want to use 8 CPUs:
+
+```{r parallel-loglik-8cpu, eval=FALSE}
+rstan_options(threads_per_chain = 8)
+tva_model <- stantva_model(...)
+fit <- sampling(tva_model, tva_data)
+```
+
+If you are unsure how many CPUs are available on the target machine, you can use `parallel::detectCores()` to determine that number:
+
+```{r parallel-loglik-varcpu, eval=FALSE}
+rstan_options(threads_per_chain = parallel::detectCores())
+```
+
+Note that, for very complex models, you may notice average CPU loads significantly below 100%. This is because some computational steps in Stan cannot fully take advantage of the parallelization.
+
+
+### Combining parallel chains and within-chain parallelization
+
+As mentioned above, both can be combined but you should keep in mind that the total number of requested CPUs is given by $\textrm{threads}\times\textrm{chains}$ and may freeze your machine if the average total CPU load exceeds the available ressources. In the case of very complex models, where within-chain parallelization will hardly achieve 100% on-average CPU loads, this may still be a good idea.
+
+If you do not want to risk to overwhelm your machine, the number of threads should always lie between the number of total CPUs (`parallel::detectCores()`), and that number divided by the number of chains, depending on the complexity of the model:
+
+```{r parallel-combined, eval=FALSE}
+total_chains <- 4
+parallel_chains <- parallel_chains # can also be lower
+nthreads_per_chain <- ceiling(parallel::detectCores()/parallel_chains) # for simpler models
+nthreads_per_chain <- parallel::detectCores() # for very complex models
+rstan_options(threads_per_chain = nthreads_per_chain)
+tva_model <- stantva_model(...)
+fit <- sampling(tva_model, tva_data, chains = total_chains, cores = parallel_chains)
 ```
 
 
