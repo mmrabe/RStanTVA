@@ -1210,10 +1210,12 @@ setClass("stantvacode", slots = c("code" = "character", "config" = "list", "incl
 #'
 #'Display the content of the StanTVA code object in the console.
 #'@param object The StanTVA code object.
+#'@returns Returns \code{object} invisibly but the function is usually only called for its side effects.
 #'@export
 setMethod("show", "stantvacode", function(object) {
   cat(col_grey("// Include path(s): ", paste0(object@include_path, collapse="; ")),"\n")
   cat(object@code)
+  invisible(object)
 })
 
 
@@ -1319,6 +1321,7 @@ setMethod("show", c(object="stantvamodel"), function(object) {
   for(cname in names(object@code@config)) {
     cat(ansi_strwrap(paste0("- ",col_magenta(cname)," = ",deparse1(object@code@config[[cname]])), indent = 2, exdent = 6),sep="\n")
   }
+  invisible(object)
 })
 
 init_sampler <- function(model, pdata) {
@@ -1784,8 +1787,7 @@ tva_report <- function(data) {
   ) %>% mutate(n_targets = .data$n_items - .data$n_distractors)
 }
 
-#' Show StanTVA fit object
-#' @describeIn print Alias
+#' @describeIn print-stantvafit-method Alias
 #' @param object The StanTVA fit object.
 #'@export
 setMethod("show", "stantvafit", function(object) print(object))

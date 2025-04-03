@@ -9,6 +9,9 @@
 \arguments{
 \item{object}{The StanTVA code object.}
 }
+\value{
+Returns \code{object} invisibly but the function is usually only called for its side effects.
+}
 \description{
 Display the content of the StanTVA code object in the console.
 }
