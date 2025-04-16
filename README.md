@@ -728,7 +728,7 @@ chains, depending on the complexity of the model:
 
 ``` r
 total_chains <- 4
-parallel_chains <- parallel_chains # can also be lower
+parallel_chains <- total_chains # can also be lower
 nthreads_per_chain <- ceiling(parallel::detectCores()/parallel_chains) # for simpler models
 nthreads_per_chain <- parallel::detectCores() # for very complex models
 rstan_options(threads_per_chain = nthreads_per_chain)

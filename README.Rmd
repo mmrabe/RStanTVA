@@ -267,7 +267,7 @@ If you do not want to risk to overwhelm your machine, the number of threads shou
 
 ```{r parallel-combined, eval=FALSE}
 total_chains <- 4
-parallel_chains <- parallel_chains # can also be lower
+parallel_chains <- total_chains # can also be lower
 nthreads_per_chain <- ceiling(parallel::detectCores()/parallel_chains) # for simpler models
 nthreads_per_chain <- parallel::detectCores() # for very complex models
 rstan_options(threads_per_chain = nthreads_per_chain)
