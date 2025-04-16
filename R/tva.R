@@ -41,7 +41,7 @@ get_prior <- function(priors, class, dpar = NA_character_, group = NA_character_
 }
 
 deparse_prior <- function(prior) {
-  if(nrow(prior) == 0) {
+  if(is.null(prior) || nrow(prior) == 0) {
     return(NULL)
   } else if(nrow(prior) == 1)  {
     args <- list(str2lang(prior$prior))
