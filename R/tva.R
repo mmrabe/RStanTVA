@@ -50,7 +50,7 @@ deparse_prior <- function(prior) {
     for(arg in c("lb","ub")) if(!is.na(prior[[arg]])) args[[arg]] <- prior[[arg]]
     return(as.call(c(list(as.name("prior")), args)))
   } else {
-    return(call("+", sys.function()(prior[1,]),sys.function()(prior[-1,])))
+    return(call("+", sys.function()(prior[seq_len(nrow(prior)-1),]),sys.function()(prior[nrow(prior),])))
   }
 }
 
@@ -398,6 +398,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   for(x in formalArgs(sys.function())) {
     if(x %in% c("data","type")) next
     val <- get(x)
+    if(x == "priors") val <- deparse_prior(val)
     call_args[x] <- if(is.numeric(val) || is.character(val) || is.logical(val)) as.character(val) else deparse1(val)
     call_args_list[[x]] <- val
   }
@@ -1319,7 +1320,7 @@ setClass("stantvafit", contains = "stanfit", slots = c("stanmodel" = "stantvamod
 setMethod("show", c(object="stantvamodel"), function(object) {
   cat(col_cyan("StanTVA"), "model with", length(object@code@df),"free parameter(s) and the following configuration:\n")
   for(cname in names(object@code@config)) {
-    cat(ansi_strwrap(paste0("- ",col_magenta(cname)," = ",deparse1(object@code@config[[cname]])), indent = 2, exdent = 6),sep="\n")
+    cat(ansi_strwrap(paste0("- ",col_magenta(cname)," = ",deparse1(if(cname == "priors") deparse_prior(object@code@config$priors) else object@code@config[[cname]])), indent = 2, exdent = 6),sep="\n")
   }
   invisible(object)
 })
