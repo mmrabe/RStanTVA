@@ -555,7 +555,109 @@ tva_hierarchical_subset <- tva_recovery %>% filter(subject <= 10 & trial <= 100)
 
 ``` r
 tva_hierarchical_fit <- sampling(tva_hierarchical_model, tva_hierarchical_subset)
+```
+
+``` r
 tva_hierarchical_fit
+#> StanTVA model with 6 free parameter(s), fitted with 4  chains, each with iter=2000; warmup=1000; thin=1
+#> 
+#> Model configuration:
+#> formula = list(log(C) ~ 1 + condition + (1 + condition | C_alpha | subject), log(alpha) ~ 1 + (1 | C_alpha | subject), log(pK) ~ 1 + (1 | subject), mu0 ~ 1 + (1 | subject), log(sigma0) ~ 1 + (1 | subject), log(w) ~ 1 + (1 | subject))
+#> locations = 6
+#> task = "pr"
+#> regions = list()
+#> C_mode = "equal"
+#> w_mode = "locations"
+#> t0_mode = "gaussian"
+#> K_mode = "free"
+#> max_K = 6
+#> allow_guessing = FALSE
+#> parallel = TRUE
+#> save_log_lik = FALSE
+#> priors = prior(normal(0, 0.07), dpar = C) + prior(normal(4, 0.2), coef = Intercept, dpar = C) + prior(normal(0, 0.07), dpar = alpha) + prior(normal(-0.2, 0.1), coef = Intercept, dpar = alpha) + prior(normal(0, 0.03), dpar = pK) + prior(normal(0, 0.1), coef = Intercept, dpar = pK) + prior(normal(0, 5), dpar = mu0) + prior(normal(30, 15), coef = Intercept, dpar = mu0) + prior(normal(0, 0.04), dpar = sigma0) + prior(normal(0, 0.2), coef = Intercept, dpar = sigma0) + prior(normal(0, 0.05), dpar = w) + prior(normal(0,      0.1), coef = Intercept, dpar = w) + prior(normal(0, 10), class = sd, coef = Intercept, dpar = mu0) + prior(normal(0, 5), class = sd, dpar = mu0)
+#> sanity_checks = TRUE
+#> debug_neginf_loglik = FALSE
+#> 
+#> Fixed effects:
+#>                   mean se_mean   sd  2.5%   25%   50%   75% 97.5%   n_eff Rhat
+#> C_Intercept       4.25    0.00 0.08  4.09  4.19  4.24  4.30  4.41 3634.74    1
+#> C_conditionhigh   0.01    0.00 0.06 -0.10 -0.03  0.01  0.05  0.13 3818.13    1
+#> alpha_Intercept  -0.25    0.00 0.08 -0.42 -0.31 -0.25 -0.20 -0.10 4208.60    1
+#> pK_Intercept[1]  -0.18    0.00 0.08 -0.35 -0.24 -0.18 -0.12 -0.02 3475.77    1
+#> pK_Intercept[2]  -0.08    0.00 0.09 -0.25 -0.14 -0.08 -0.02  0.08 3117.08    1
+#> pK_Intercept[3]   0.21    0.00 0.09  0.03  0.15  0.21  0.27  0.38 2297.50    1
+#> pK_Intercept[4]   0.11    0.00 0.09 -0.06  0.05  0.11  0.17  0.28 5884.16    1
+#> pK_Intercept[5]  -0.03    0.00 0.09 -0.21 -0.08 -0.03  0.03  0.14 4882.48    1
+#> pK_Intercept[6]  -0.02    0.00 0.09 -0.21 -0.09 -0.02  0.04  0.16 6240.98    1
+#> mu0_Intercept    10.87    0.09 3.01  5.09  8.87 10.90 12.80 16.78 1199.21    1
+#> sigma0_Intercept  0.02    0.00 0.20 -0.37 -0.10  0.02  0.16  0.40 4652.04    1
+#> w_Intercept[1]   -0.06    0.00 0.06 -0.19 -0.11 -0.06 -0.02  0.07 4082.87    1
+#> w_Intercept[2]    0.04    0.00 0.06 -0.08 -0.01  0.04  0.08  0.16 3846.57    1
+#> w_Intercept[3]    0.01    0.00 0.06 -0.11 -0.03  0.01  0.06  0.14 4923.33    1
+#> w_Intercept[4]    0.06    0.00 0.07 -0.08  0.02  0.06  0.10  0.18 1321.66    1
+#> w_Intercept[5]    0.03    0.00 0.06 -0.08 -0.01  0.03  0.08  0.16 4374.83    1
+#> 
+#> Hyperparameters on random effects (subject level, N = 10):
+#>                                                       mean se_mean   sd  2.5%
+#> sd(C_subject_Intercept)                               0.07    0.00 0.05  0.00
+#> sd(C_subject_conditionhigh)                           0.04    0.00 0.03  0.00
+#> sd(alpha_subject_Intercept)                           0.08    0.00 0.06  0.00
+#> sd(pK_subject_Intercept[1])                           0.13    0.01 0.09  0.01
+#> sd(pK_subject_Intercept[2])                           0.08    0.01 0.06  0.00
+#> sd(pK_subject_Intercept[3])                           0.13    0.01 0.09  0.01
+#> sd(pK_subject_Intercept[4])                           0.10    0.00 0.07  0.01
+#> sd(pK_subject_Intercept[5])                           0.08    0.00 0.06  0.01
+#> sd(pK_subject_Intercept[6])                           0.08    0.00 0.06  0.00
+#> sd(mu0_subject_Intercept)                             8.52    0.06 2.64  4.50
+#> sd(sigma0_subject_Intercept)                          0.08    0.01 0.06  0.00
+#> sd(w_subject_Intercept[1])                            0.08    0.00 0.06  0.01
+#> sd(w_subject_Intercept[2])                            0.12    0.00 0.07  0.01
+#> sd(w_subject_Intercept[3])                            0.08    0.00 0.05  0.01
+#> sd(w_subject_Intercept[4])                            0.12    0.00 0.07  0.01
+#> sd(w_subject_Intercept[5])                            0.08    0.00 0.05  0.01
+#> cor(C_subject_Intercept,C_subject_conditionhigh)     -0.01    0.01 0.34 -0.65
+#> cor(C_subject_Intercept,alpha_subject_Intercept)      0.00    0.01 0.35 -0.64
+#> cor(C_subject_conditionhigh,alpha_subject_Intercept)  0.00    0.01 0.35 -0.67
+#>                                                        25%   50%   75% 97.5%
+#> sd(C_subject_Intercept)                               0.03  0.07  0.11  0.20
+#> sd(C_subject_conditionhigh)                           0.02  0.03  0.06  0.11
+#> sd(alpha_subject_Intercept)                           0.03  0.07  0.11  0.22
+#> sd(pK_subject_Intercept[1])                           0.06  0.12  0.19  0.31
+#> sd(pK_subject_Intercept[2])                           0.03  0.06  0.11  0.23
+#> sd(pK_subject_Intercept[3])                           0.06  0.12  0.20  0.33
+#> sd(pK_subject_Intercept[4])                           0.05  0.09  0.14  0.25
+#> sd(pK_subject_Intercept[5])                           0.03  0.06  0.11  0.23
+#> sd(pK_subject_Intercept[6])                           0.04  0.07  0.12  0.21
+#> sd(mu0_subject_Intercept)                             6.63  8.13 10.03 14.47
+#> sd(sigma0_subject_Intercept)                          0.03  0.07  0.12  0.22
+#> sd(w_subject_Intercept[1])                            0.03  0.07  0.12  0.21
+#> sd(w_subject_Intercept[2])                            0.06  0.11  0.16  0.26
+#> sd(w_subject_Intercept[3])                            0.04  0.07  0.11  0.19
+#> sd(w_subject_Intercept[4])                            0.06  0.12  0.17  0.26
+#> sd(w_subject_Intercept[5])                            0.04  0.07  0.11  0.20
+#> cor(C_subject_Intercept,C_subject_conditionhigh)     -0.26 -0.01  0.25  0.65
+#> cor(C_subject_Intercept,alpha_subject_Intercept)     -0.25 -0.01  0.25  0.67
+#> cor(C_subject_conditionhigh,alpha_subject_Intercept) -0.26  0.00  0.25  0.66
+#>                                                        n_eff Rhat
+#> sd(C_subject_Intercept)                               243.44 1.02
+#> sd(C_subject_conditionhigh)                           217.85 1.03
+#> sd(alpha_subject_Intercept)                           212.46 1.02
+#> sd(pK_subject_Intercept[1])                           135.83 1.03
+#> sd(pK_subject_Intercept[2])                           114.19 1.02
+#> sd(pK_subject_Intercept[3])                           167.43 1.03
+#> sd(pK_subject_Intercept[4])                           204.51 1.01
+#> sd(pK_subject_Intercept[5])                           180.01 1.00
+#> sd(pK_subject_Intercept[6])                           221.09 1.01
+#> sd(mu0_subject_Intercept)                            2242.84 1.00
+#> sd(sigma0_subject_Intercept)                          135.26 1.03
+#> sd(w_subject_Intercept[1])                            174.37 1.01
+#> sd(w_subject_Intercept[2])                            240.97 1.01
+#> sd(w_subject_Intercept[3])                            249.55 1.01
+#> sd(w_subject_Intercept[4])                            204.04 1.01
+#> sd(w_subject_Intercept[5])                            300.78 1.01
+#> cor(C_subject_Intercept,C_subject_conditionhigh)     3201.99 1.00
+#> cor(C_subject_Intercept,alpha_subject_Intercept)     1814.57 1.00
+#> cor(C_subject_conditionhigh,alpha_subject_Intercept) 3113.59 1.00
 ```
 
 ## Parallelization
