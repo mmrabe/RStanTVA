@@ -35,19 +35,26 @@ remotes::install_github("mmrabe/RStanTVA")
 
 ## Loading the library
 
-```{r example-load}
+```{r example-load, results=FALSE}
 library(RStanTVA)
 library(tidyverse)
 ```
 
 ## Example data set
 
+The functions in this package use a relatively simplistic data format. For an experiment with $n$ trials and $m$ display locations, the data should be represented as a `list` or `tibble` with the following columns/elements:
+
+- `S`: An $n \times m$ matrix with values `TRUE` or `1` wherever a stimulus was displayed, otherwise `FALSE` or `0`. If stimuli were displayed in all $m$ display locations in all $n$ trials, this would simply be `matrix(TRUE,n,m)`.
+- `R`: An $n \times m$ matrix with values `TRUE` or `1` for every correctly reported *target* location, otherwise `FALSE` or `0`. This must be `FALSE`/`0` where `S` is `FALSE`/`0` or `D` (see below) is `TRUE`/`1`, otherwise will throw an error.
+- `D`: An $n \times m$ matrix with values `TRUE` or `1` for every location, otherwise `FALSE` or `0`. This must be `FALSE`/`0` where `S` is `FALSE`/`0` or `R` (see below) is `TRUE`/`1`, otherwise will throw an error. `D` is optional if *all* trials are whole report. Whole-report trials can also be included by setting all `D` of the respective trials to `FALSE`/`0`, since a partial report without distractors is effectively a whole report.
+- `T`: An $n$-length numeric vector of exposure durations (in milliseconds).
+
 ```{r load-data, cache=FALSE}
 data("tva_recovery")
 data("tva_recovery_true_params")
 ```
 
-`RStanTVA` comes with a CombiTVA data set `tva_recovery` of `r max(tva_recovery$subject)` simulated subjects with `r max(tva_recovery$trial)` trials each. For each subject and trial, the true underlying parameters are known exactly, which makes it very useful for demonstrating the functionality of this package.
+`RStanTVA` comes with a CombiTVA data set `tva_recovery` of `r max(tva_recovery$subject)` simulated subjects with `r max(tva_recovery$trial)` trials each. For each subject and trial, the true underlying parameters are known exactly, which makes it very useful for demonstrating the functionality of this package:
 
 Of the `r max(tva_recovery$trial)` trials, half were carried out under the `high` condition, and the other half under the `low` condition. Imagine that those are maybe different levels of luminance, some sort of cognitive load or so. The concrete manipulation is not really relevant but we *do* know that on average, `r sprintf("$C_\\mathrm{high}=%.1f>C_\\mathrm{low}=%.1f$",exp(tva_recovery_true_params$b["C_Intercept"]+tva_recovery_true_params$b["C_conditionhigh"]),exp(tva_recovery_true_params$b["C_Intercept"]))`, and that across subjects, `r sprintf("$\\mathrm{cor}\\left(C,\\alpha\\right)=%+.1f$",tva_recovery_true_params$r_subject["C_Intercept","alpha_Intercept"])`.
 
