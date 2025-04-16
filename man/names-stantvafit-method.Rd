@@ -15,3 +15,9 @@ The list of parameter names and aliases.
 \description{
 Returns the names of the fitted model parameters.
 }
+\examples{
+\donttest{
+f <- read_stantva_fit("fit.rds")
+names(f)
+}
+}
