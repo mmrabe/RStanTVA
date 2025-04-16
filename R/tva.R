@@ -1469,7 +1469,7 @@ setMethod("optimizing", c(object = "stantvamodel"), function(object, data, init,
 #'@export
 setMethod("logLik", "stantvafit", function(object) {
   if(!isTRUE(object@stanmodel@code@config$save_log_lik)) stop("StanTVA model must be compiled with `save_log_lik` = TRUE in order to use logLik()!")
-  extract(object, "log_lik")$log_lik
+  extract(as(object,"stanfit"), "log_lik")$log_lik
 })
 
 
@@ -1577,12 +1577,12 @@ fixef.stantvafit <- function(object) {
   formula_lhs <- attr(object@stanmodel@code@df, "formula_lhs")
   r <- NULL
   if(!is.null(formula_lhs)) {
-    b <- extract(object, "b")$b
+    b <- extract(as(object,"stanfit"), "b")$b
     colnames(b) <- alias(object)[match(sprintf("b[%d]", seq_len(ncol(b))), names(object))]
     r <- rbind(r, b)
   }
   for(p in setdiff(names(object@stanmodel@code@df), formula_lhs[2,])) {
-    b <- extract(object, p)[[1]]
+    b <- extract(as(object,"stanfit"), p)[[1]]
     colnames(b) <- p
     r <- rbind(r, b)
   }
@@ -1619,7 +1619,7 @@ ranef.stantvafit <- function(object) {
   if(nrow(g) == 0L) return(list())
   sapply(unique(g$factor_txt), function(rf) {
     gs <- unique(filter(g, .data$factor_txt == rf)$group)
-    bos <- rstan::extract(object, paste0("w_", gs))
+    bos <- rstan::extract(as(object,"stanfit"), paste0("w_", gs))
     b <- array(NA_real_, dim = c(dim(bos[[1]])[1:2], sum(vapply(bos, function(x) dim(x)[[3]], integer(1)))))
     dimnames(b)[[3]] <- character(dim(b)[[3]])
     y <- 1L
@@ -1693,10 +1693,9 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
   sapply(variables, function(parname) {
     which_formula <- match(parname, fx$param)
     if(is.na(which_formula)) {
-      p <- extract(object, parname)[[1]]
+      p <- extract(as(object,"stanfit"), parname)[[1]]
       replicate(newdata$N, p)
     } else {
-      #### !!!!!!!!
       bt <- fx$inverse_link[[which_formula]]
       rfs <- fx$random[[which_formula]]
       par_dim <- object@stanmodel@code@dim[parname]
@@ -1706,7 +1705,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
         if(par_dim > 1) ps <- c(ps, paste0("w_",rfs$group[i],"_",seq_len(par_df)))
         else ps <- c(ps, paste0("w_",rfs$group[i]))
       }
-      p <- extract(object, ps)
+      p <- extract(as(object,"stanfit"), ps)
       r <- vapply(seq_len(par_dim), function(i) {
         m <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i) else paste0("map_",parname)]]
         if(i > par_df) return(matrix(1, (object@sim$iter-object@sim$warmup)*object@sim$chains, newdata$N))
