@@ -116,7 +116,7 @@ read_tva_data <- function(file, set = LETTERS, ...) {
 #'@export
 write_tva_data <- function(data, file, ...) {
   if(inherits(file, "connection")) f <- file
-  else f <- base::file(file, "w")
+  else f <- base::file(file, "wb")
   stopifnot(!is.null(data$S), !is.null(data$R))
   if(is.null(data$items)) {
     data$items <- t(vapply(seq_len(nrow(data)), function(i) sample(LETTERS, ncol(data$S)), character(ncol(data$S))))
@@ -129,12 +129,13 @@ write_tva_data <- function(data, file, ...) {
   }
   writeLines(as.character(nrow(data)), f)
   bind_cols(
-    condition = data$condition,
-    exposure = data$T,
+    condition = as.integer(data$condition),
+    exposure = as.integer(data$T),
     targets = vapply(seq_len(nrow(data)), function(i) paste0(if_else(data$S[i,] == 1L & data$D[i,] == 0L, data$items[i,], "0"), collapse = ""), character(1)),
     distractors = vapply(seq_len(nrow(data)), function(i) paste0(if_else(data$S[i,] == 1L & data$D[i,] == 1L, data$items[i,], "0"), collapse = ""), character(1)),
     report = vapply(seq_len(nrow(data)), function(i) if(sum(data$R[i,])>0) paste0(if_else(data$S[i,] == 1L & data$D[i,] == 0L & data$R[i,] == 1L, data$items[i,], ""), collapse = "") else "-", character(1))
   ) %>% write_tsv(f, col_names = FALSE, ...)
+  close(f)
 }
 
 #' Extract Stan code
