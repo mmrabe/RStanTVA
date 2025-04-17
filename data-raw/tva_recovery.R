@@ -12,17 +12,17 @@ b <- c(
   C_conditionhigh = log(100) - log(80),
   alpha_Intercept = log(0.7),
   alpha_conditionhigh = 0,
-  `pK_Intercept[1]` = 0,
+  `pK_Intercept[1]` = -6.5,
   `pK_conditionhigh[1]` = 0,
-  `pK_Intercept[2]` = 0,
+  `pK_Intercept[2]` = -3.2,
   `pK_conditionhigh[2]` = 0,
-  `pK_Intercept[3]` = 0.7,
+  `pK_Intercept[3]` = -0.8,
   `pK_conditionhigh[3]` = 0,
-  `pK_Intercept[4]` = 1.6,
+  `pK_Intercept[4]` = 0.66,
   `pK_conditionhigh[4]` = 0,
-  `pK_Intercept[5]` = 2.1,
+  `pK_Intercept[5]` = 1.27,
   `pK_conditionhigh[5]` = 0,
-  `pK_Intercept[6]` = 0.7,
+  `pK_Intercept[6]` = 0.98,
   `pK_conditionhigh[6]` = 0,
   sigma0_Intercept = 2.0,
   sigma0_conditionhigh = 0,
@@ -45,17 +45,17 @@ sd_subj <- c(
   C_conditionhigh = 0.05,
   alpha_Intercept = 0.2,
   alpha_conditionhigh = 0.05,
-  `pK_Intercept[1]` = 0.1,
+  `pK_Intercept[1]` = 5.0,
   `pK_conditionhigh[1]` = 0,
-  `pK_Intercept[2]` = 0.1,
+  `pK_Intercept[2]` = 4.3,
   `pK_conditionhigh[2]` = 0,
-  `pK_Intercept[3]` = 0.1,
+  `pK_Intercept[3]` = 3.5,
   `pK_conditionhigh[3]` = 0,
-  `pK_Intercept[4]` = 0.2,
+  `pK_Intercept[4]` = 2.7,
   `pK_conditionhigh[4]` = 0,
-  `pK_Intercept[5]` = 0.2,
+  `pK_Intercept[5]` = 1.9,
   `pK_conditionhigh[5]` = 0,
-  `pK_Intercept[6]` = 0.1,
+  `pK_Intercept[6]` = 1.0,
   `pK_conditionhigh[6]` = 0,
   sigma0_Intercept = 0.2,
   sigma0_conditionhigh = 0,
@@ -80,6 +80,9 @@ cor_subj["C_conditionhigh","C_Intercept"] <- -.2
 cor_subj["C_Intercept","alpha_Intercept"] <- -.3
 cor_subj["alpha_conditionhigh","C_Intercept"] <- -.3
 
+cx <- expand.grid(a = 1:6, b = 1:6)
+for(i in seq_len(nrow(cx))) cor_subj[sprintf("pK_Intercept[%d]",cx$a[i]),sprintf("pK_Intercept[%d]",cx$b[i])] <- 1-abs(cx$a[i]-cx$b[i])/5*0.15
+cor_subj[sprintf("pK_Intercept[%d]",1:6),sprintf("pK_Intercept[%d]",1:6)]
 z_subj <- mvrnorm(50, rep(0, length(sd_subj)), cor_subj)
 
 subject_ranefs <- z_subj * matrix(sd_subj, nrow = nrow(z_subj), ncol = length(sd_subj), byrow = TRUE)
@@ -171,3 +174,4 @@ tva_recovery_true_params <- list(
 
 
 usethis::use_data(tva_recovery, tva_recovery_true_params, overwrite = TRUE, compress = "xz")
+
