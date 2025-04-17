@@ -1,7 +1,7 @@
 Package: RStanTVA
 Type: Package
 Title: TVA Models in 'Stan' using 'R' and 'StanTVA'
-Version: 0.2.2
+Version: 0.2.3
 Authors@R: c(
     person(given = "Maximilian M.", family = "Rabe", email = "maximilian.rabe@uni-potsdam.de", role = c("aut","cre"), comment = c(ORCID = "0000-0002-2556-5644")),
     person(given = "S\u00f8ren", family = "Kyllingsb\u00e6k", email = "soeren.kyllingsbaek@psy.ku.dk", role = c("aut"), comment = c(ORCID = "0000-0002-4100-437X")))
