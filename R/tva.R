@@ -638,7 +638,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   } else if(w_mode == "locations") {
     w_pars <- "w"
     w_body <- NULL
-    add_param(name = "w", type = sprintf("simplex[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype ="vector", dim = locations, prior = ~lognormal(0,0.5))
+    add_param(name = "w", type = sprintf("simplex[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype ="vector", dim = locations, prior = ~lognormal(0,1))
     for(i in seq_along(regions)) {
       #add_code(
       #  "generated quantities",
@@ -654,7 +654,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     K_args <- "[K]'"
   } else if(K_mode == "free") {
     add_code("functions", includeFile("freeK.stan"))
-    add_param(name = "pK", class = c("phi","K"), type = sprintf("simplex[%d]", max_K+1L), ctype=sprintf("vector[%d]", max_K+1L), rtype="vector", dim = max_K+1L, prior = ~lognormal(0,0.5))
+    add_param(name = "pK", class = c("phi","K"), type = sprintf("simplex[%d]", max_K+1L), ctype=sprintf("vector[%d]", max_K+1L), rtype="vector", dim = max_K+1L, prior = ~lognormal(0,1))
     #add_code("generated quantities", paste0("real mK = ",paste(sprintf("%d * pK[%d]", seq_len(locations), seq_len(locations)+1L), collapse=" + "),";"));
     K_args <- "pK"
   } else if(K_mode == "binomial") {
@@ -1093,7 +1093,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
         }
       } else {
         p <- get_prior(priors, "global", dpar=name)
-        if(is.null(p)) sprintf("// no prior for global %s", name) else sprintf("%s ~ %s;", name, p)
+        if(is.null(p)) sprintf("// no prior for global %s", name) else if(grepl("^simplex\\b", parameters[[name]]$type)) sprintf("%1$s[:%2$d]/%1$s[%3$d] ~ %4$s;", name, parameters[[name]]$dim-1, parameters[[name]]$dim, p) else sprintf("%s ~ %s;", name, p)
       }
     }))
   )
