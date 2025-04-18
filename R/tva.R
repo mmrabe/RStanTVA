@@ -1826,7 +1826,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
   heading("Model configuration:")
   for(n in names(x@stanmodel@code@config)) {
     cat(n,"= ")
-    if(n == "priors") cat(deparse1(deparse_prior(x@stanmodel@code@config$prior)))
+    if(n == "priors") cat(deparse1(deparse_prior(x@stanmodel@code@config$priors)))
     else cat(deparse1(x@stanmodel@code@config[[n]]))
     cat("\n")
   }
