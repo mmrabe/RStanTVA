@@ -660,8 +660,8 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   } else if(K_mode == "betabinomial") {
     add_code("functions", includeFile("betabinomialK.stan"))
     # TODO add prior!
-    add_param(name = "aK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", prior = ~lognormal(0,1))
-    add_param(name = "bK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", prior = ~lognormal(0,1))
+    add_param(name = "aK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(0,1))
+    add_param(name = "bK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(0,1))
     #add_code("generated quantities", "real mK = nK * pK;")
     K_args <- "[aK, bK]'"
   } else if(K_mode == "binomial") {
