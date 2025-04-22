@@ -1700,26 +1700,22 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
       rfs <- fx$random[[which_formula]]
       par_dim <- object@stanmodel@code@dim[parname]
       par_df <- object@stanmodel@code@df[parname]
-      ps <- "b"
-      for(i in seq_len(nrow(rfs))) {
-        if(par_dim > 1) ps <- c(ps, paste0("w_",rfs$group[i],"_",seq_len(par_df)))
-        else ps <- c(ps, paste0("w_",rfs$group[i]))
-      }
+      ps <- c("b", paste0("w_",rfs$group))
       p <- extract(as(object,"stanfit"), ps)
       r <- vapply(seq_len(par_dim), function(i) {
         m <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i) else paste0("map_",parname)]]
         if(i > par_df) return(matrix(1, (object@sim$iter-object@sim$warmup)*object@sim$chains, newdata$N))
-        y <- tcrossprod(newdata$X[,m], p$b[,m])
+        y <- tcrossprod(newdata$X[,m,drop=FALSE], p$b[,m,drop=FALSE])
         for(k in seq_len(nrow(rfs))) {
-          mrf <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i,"_",rfs$group[k],"_",i) else paste0("map_",parname,"_",rfs$group[k])]]
+          mrf <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i,"_",rfs$group[k]) else paste0("map_",parname,"_",rfs$group[k])]]
           for(j in seq_len(newdata[[paste0("N_",rfs$factor_txt[k])]])) {
             J <- newdata[[rfs$factor_txt[k]]] == j
             #print(which(J))
             #print(if(par_dim > 1) paste0("w_",rfs$group[k],"_",i) else paste0("w_",rfs$group[k]))
-            Z <- newdata[[if(par_dim > 1) paste0("Z_",rfs$group[k],"_",i) else paste0("Z_",rfs$group[k])]][J,mrf,drop=FALSE]
+            Z <- newdata[[paste0("Z_",rfs$group[k])]][J,mrf,drop=FALSE]
             #message(if(par_dim > 1) paste0("w_",rfs$group[k],"_",i) else paste0("w_",rfs$group[k]))
-            w <- t(as.matrix(p[[if(par_dim > 1) paste0("w_",rfs$group[k],"_",i) else paste0("w_",rfs$group[k])]][,j,mrf]))
-            W <- Z %*% w
+            w <- as.matrix(p[[paste0("w_",rfs$group[k])]][,j,mrf,drop=TRUE])
+            W <- tcrossprod(Z, w)
             #print(if(par_dim > 1) paste0("Z_",rfs$group[k],"_",i) else paste0("Z_",rfs$group[k]))
             #print(names(newdata))
             #print(Z)
@@ -1734,7 +1730,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
           r[,,i] <- r[,,i] / rs
         }
       }
-      if(object@stanmodel@code@df[parname] > 1) r else r[,,1]
+      if(object@stanmodel@code@df[parname] > 1) aperm(r,c(1,3,2)) else r[,,1]
     }
   }, simplify = FALSE)
 }
@@ -1826,7 +1822,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
   heading("Model configuration:")
   for(n in names(x@stanmodel@code@config)) {
     cat(n,"= ")
-    if(n == "priors") cat(deparse1(deparse_prior(x@stanmodel@code@config$priors)))
+    if(n == "priors") cat(deparse1(x@stanmodel@code@config$priors))
     else cat(deparse1(x@stanmodel@code@config[[n]]))
     cat("\n")
   }
@@ -1853,7 +1849,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
   if(nrow(fx) > 0L) {
 
-    rfs <- fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && x@stanmodel@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(x@stanmodel@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
+    rfs <- fx$random %>% bind_rows() %>% {lapply(seq_len(nrow(.)), function(i) .[i,])} %>% lapply(function(fxi) if(!is.null(fxi$param) && x@stanmodel@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(x@stanmodel@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
 
     random_factors_txt <- if(nrow(rfs) > 0L) unique(rfs$factor_txt) else character()
 
@@ -1938,7 +1934,7 @@ translate_names <- function(model, data, names) {
         new_ret[match(sprintf("b[%d]", m), ret)] <- paste0(fx$param[i], "_", colnames(data$X)[m], "[",j,"]")
       }
     }
-    rfs <- if(is.null(fx$random) || nrow(bind_rows(fx$random)) == 0) tibble() else fx$random %>% lapply(function(fxi) if(!is.null(fxi$param) && model@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(model@code@dim[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
+    rfs <- if(is.null(fx$random) || nrow(bind_rows(fx$random)) == 0) tibble() else fx$random %>% bind_rows() %>% {lapply(seq_len(nrow(.)), function(i) .[i,])} %>% lapply(function(fxi) if(!is.null(fxi$param) && model@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(model@code@dim[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
     for(i in seq_len(nrow(rfs))) {
       param <- rfs$param[i]
       if(model@code@dim[param] == 1L) {
