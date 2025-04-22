@@ -623,7 +623,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     w_body <- sprintf("vector[%1$d] w = rep_vector(1.0/%1$d.0, %1$d);", locations)
   } else if(w_mode == "regions") {
     if(length(regions) == 0) stop("You must define regions if w_mode = 'regions'!")
-    add_param(name = "r", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions))
+    add_param(name = "r", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = ~lognormal(0,0.2))
     w_pars <- "r"
     w_body <- c(
       sprintf("vector[%1$d] w;", locations),
