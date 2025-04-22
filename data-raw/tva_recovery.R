@@ -12,32 +12,16 @@ b <- c(
   C_conditionhigh = log(100) - log(80),
   alpha_Intercept = log(0.7),
   alpha_conditionhigh = 0,
-  `pK_Intercept[1]` = -6.5,
-  `pK_conditionhigh[1]` = 0,
-  `pK_Intercept[2]` = -3.2,
-  `pK_conditionhigh[2]` = 0,
-  `pK_Intercept[3]` = -0.8,
-  `pK_conditionhigh[3]` = 0,
-  `pK_Intercept[4]` = 0.66,
-  `pK_conditionhigh[4]` = 0,
-  `pK_Intercept[5]` = 1.27,
-  `pK_conditionhigh[5]` = 0,
-  `pK_Intercept[6]` = 0.98,
-  `pK_conditionhigh[6]` = 0,
+  `aK_Intercept` = 1.0,
+  `aK_conditionhigh` = 0,
+  `bK_Intercept` = -0.4,
+  `bK_conditionhigh` = 0,
   sigma0_Intercept = 2.0,
   sigma0_conditionhigh = 0,
   mu0_Intercept = 20,
   mu0_conditionhigh = 0,
   `w_Intercept[1]` = 0,
-  `w_conditionhigh[1]` = 0,
-  `w_Intercept[2]` = 0,
-  `w_conditionhigh[2]` = 0,
-  `w_Intercept[3]` = 0,
-  `w_conditionhigh[3]` = 0,
-  `w_Intercept[4]` = 0,
-  `w_conditionhigh[4]` = 0,
-  `w_Intercept[5]` = 0,
-  `w_conditionhigh[5]` = 0
+  `w_conditionhigh[1]` = 0
 )
 
 sd_subj <- c(
@@ -45,44 +29,24 @@ sd_subj <- c(
   C_conditionhigh = 0.05,
   alpha_Intercept = 0.2,
   alpha_conditionhigh = 0.05,
-  `pK_Intercept[1]` = 5.0,
-  `pK_conditionhigh[1]` = 0,
-  `pK_Intercept[2]` = 4.3,
-  `pK_conditionhigh[2]` = 0,
-  `pK_Intercept[3]` = 3.5,
-  `pK_conditionhigh[3]` = 0,
-  `pK_Intercept[4]` = 2.7,
-  `pK_conditionhigh[4]` = 0,
-  `pK_Intercept[5]` = 1.9,
-  `pK_conditionhigh[5]` = 0,
-  `pK_Intercept[6]` = 1.0,
-  `pK_conditionhigh[6]` = 0,
+  `aK_Intercept` = 0.36,
+  `aK_conditionhigh` = 0,
+  `bK_Intercept` = 1.0,
+  `bK_conditionhigh` = 0,
   sigma0_Intercept = 0.2,
   sigma0_conditionhigh = 0,
   mu0_Intercept = 10,
   mu0_conditionhigh = 0,
-  `w_Intercept[1]` = 0.2,
-  `w_conditionhigh[1]` = 0,
-  `w_Intercept[2]` = 0.2,
-  `w_conditionhigh[2]` = 0,
-  `w_Intercept[3]` = 0.2,
-  `w_conditionhigh[3]` = 0,
-  `w_Intercept[4]` = 0.2,
-  `w_conditionhigh[4]` = 0,
-  `w_Intercept[5]` = 0.2,
-  `w_conditionhigh[5]` = 0
+  `w_Intercept[1]` = 0.1,
+  `w_conditionhigh[1]` = 0
 )
 
 cor_subj <- diag(length(sd_subj))
 dimnames(cor_subj) <- list(names(sd_subj), names(sd_subj))
-cor_subj["C_Intercept","C_conditionhigh"] <- -.2
-cor_subj["C_conditionhigh","C_Intercept"] <- -.2
-cor_subj["C_Intercept","alpha_Intercept"] <- -.3
-cor_subj["alpha_conditionhigh","C_Intercept"] <- -.3
+cor_subj["C_Intercept","C_conditionhigh"] <- cor_subj["C_conditionhigh","C_Intercept"] <- -.2
+cor_subj["C_Intercept","alpha_Intercept"] <- cor_subj["alpha_Intercept","C_Intercept"] <- -.3
+cor_subj["aK_Intercept","bK_Intercept"] <- cor_subj["bK_Intercept","aK_Intercept"] <- 0.68
 
-cx <- expand.grid(a = 1:6, b = 1:6)
-for(i in seq_len(nrow(cx))) cor_subj[sprintf("pK_Intercept[%d]",cx$a[i]),sprintf("pK_Intercept[%d]",cx$b[i])] <- 1-abs(cx$a[i]-cx$b[i])/5*0.15
-cor_subj[sprintf("pK_Intercept[%d]",1:6),sprintf("pK_Intercept[%d]",1:6)]
 z_subj <- mvrnorm(50, rep(0, length(sd_subj)), cor_subj)
 
 subject_ranefs <- z_subj * matrix(sd_subj, nrow = nrow(z_subj), ncol = length(sd_subj), byrow = TRUE)
@@ -125,14 +89,15 @@ subject_coefs <- crossing(
     x_condition = contrasts(tva_recovery$condition)[condition,1],
     C = exp((b["C_Intercept"] + subject_ranefs[j, "C_Intercept"]) + x_condition * (b["C_conditionhigh"] + subject_ranefs[j, "C_conditionhigh"])),
     alpha = exp((b["alpha_Intercept"] + subject_ranefs[j, "alpha_Intercept"]) + x_condition * (b["alpha_conditionhigh"] + subject_ranefs[j, "alpha_conditionhigh"])),
-    w = vapply(1:5, function(i) exp((b[sprintf("w_Intercept[%d]",i)] + subject_ranefs[j, sprintf("w_Intercept[%d]",i)]) + x_condition * (b[sprintf("w_conditionhigh[%d]",i)] + subject_ranefs[j, sprintf("w_conditionhigh[%d]",i)])), double(n())),
+    w = vapply(1, function(i) exp((b[sprintf("w_Intercept[%d]",i)] + subject_ranefs[j, sprintf("w_Intercept[%d]",i)]) + x_condition * (b[sprintf("w_conditionhigh[%d]",i)] + subject_ranefs[j, sprintf("w_conditionhigh[%d]",i)])), double(n())),
     mu0 = (b["mu0_Intercept"] + subject_ranefs[j, "mu0_Intercept"]) + x_condition * (b["mu0_conditionhigh"] + subject_ranefs[j, "mu0_conditionhigh"]),
     sigma0 = exp(b["sigma0_Intercept"] + subject_ranefs[j, "sigma0_Intercept"]) + x_condition * (b["sigma0_conditionhigh"] + subject_ranefs[j, "sigma0_conditionhigh"]),
-    pK = vapply(1:6, function(i) exp((b[sprintf("pK_Intercept[%d]",i)] + subject_ranefs[j, sprintf("pK_Intercept[%d]",i)]) + x_condition * (b[sprintf("pK_conditionhigh[%d]",i)] + subject_ranefs[j, sprintf("pK_conditionhigh[%d]",i)])), double(n()))
+    aK = exp((b["aK_Intercept"] + subject_ranefs[j, "aK_Intercept"]) + x_condition * (b["aK_conditionhigh"] + subject_ranefs[j, "aK_conditionhigh"])),
+    bK = exp((b["bK_Intercept"] + subject_ranefs[j, "bK_Intercept"]) + x_condition * (b["bK_conditionhigh"] + subject_ranefs[j, "bK_conditionhigh"])),
   ) %>%
   rename(subject = j) %>%
   dplyr::select(-x_condition) %>%
-  mutate(across(c("w","pK"), ~cbind(.x,1)/(rowSums(.x)+1)))
+  mutate(across("w", ~cbind(.x,1)/(rowSums(.x)+1)))
 
 
 tva_recovery$true_values <- bind_cols(tva_recovery$true_values, tva_recovery %>% dplyr::select(subject, condition) %>% left_join(subject_coefs, by = c("subject", "condition")) %>% ungroup() %>% dplyr::select(-subject,-condition))
@@ -141,14 +106,16 @@ for(i in seq_len(nrow(tva_recovery))) {
 
   C <- tva_recovery$true_values$C[i]
   alpha <- tva_recovery$true_values$alpha[i]
-  w <- tva_recovery$true_values$w[i,] * if_else(!!tva_recovery$D[i,], alpha, 1)
+  w <- rep(tva_recovery$true_values$w[i,], c(3,3)) * if_else(!!tva_recovery$D[i,], alpha, 1)
+  w <- w / sum(w)
   mu0 <- tva_recovery$true_values$mu0[i]
   sigma0 <- tva_recovery$true_values$sigma0[i]
-  pK <- tva_recovery$true_values$pK[i,]
+  aK <- tva_recovery$true_values$aK[i]
+  bK <- tva_recovery$true_values$bK[i]
 
   Ss <- which(tva_recovery$S[i,] == 1L)
   v <- C/1000 * w[Ss] / sum(w[Ss])
-  K <- sample.int(length(pK), 1, prob = pK) - 1L
+  K <- rbinom(1, ncol(tva_recovery$S), rbeta(1, aK, bK))
   t0 <- rnorm(1, mu0, sigma0)
   processing_times <- rexp(length(v), v) + t0
   Rs <- Ss[rank(processing_times) <= K & processing_times <= tva_recovery$T[i] & !tva_recovery$D[i,]]
