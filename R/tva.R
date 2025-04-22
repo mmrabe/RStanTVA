@@ -1921,9 +1921,9 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
 
   if(length(acceptable) == 1L) {
-    warning("A parameter has not converged but may still be acceptable (1.05 ≤ Rhat < 1.1):", not_converged)
+    warning("A parameter has not converged but may still be acceptable (1.05 ≤ Rhat < 1.1):", acceptable)
   } else if(length(acceptable) > 1L) {
-    warning(length(not_converged),"parameters have not converged but may still be acceptable (1.05 ≤ Rhat < 1.1):", paste(not_converged, collapse=", "))
+    warning(length(acceptable),"parameters have not converged but may still be acceptable (1.05 ≤ Rhat < 1.1):", paste(acceptable, collapse=", "))
   }
   if(length(not_converged) == 1L) {
     warning("A parameter has not converged (Rhat ≥ 1.1):", not_converged)
