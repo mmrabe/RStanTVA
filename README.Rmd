@@ -171,7 +171,7 @@ tva_fit_nested
 
 ## Hierarchical example
 
-If you have the necessary computational ressources, you can also fit a single hierarchical model to the entire data set, where you can let the parameters vary not only between conditions but even between, e.g., subjects, experimenters, locations, devices, etc. As for the previous model, you may also choose to only let specific parameters vary, or just all of them. You can specify combine model covariance matrices to capture correlations between parameters (as is done below for $C$ and $alpha$):
+If you have the necessary computational ressources, you can also fit a single hierarchical model to the entire data set, where you can let the parameters vary not only between conditions but even between, e.g., subjects, experimenters, locations, devices, etc. As for the previous model, you may also choose to only let specific parameters vary, or just all of them. You can specify combine model covariance matrices to capture correlations between parameters (as is done below for $C$ and $\alpha$):
 
 ```{r example-hierarchical, warning=FALSE, message=FALSE, results=FALSE}
 

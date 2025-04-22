@@ -520,7 +520,7 @@ subjects, experimenters, locations, devices, etc. As for the previous
 model, you may also choose to only let specific parameters vary, or just
 all of them. You can specify combine model covariance matrices to
 capture correlations between parameters (as is done below for $C$ and
-$alpha$):
+$\alpha$):
 
 ``` r
 
