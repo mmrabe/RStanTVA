@@ -838,7 +838,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   # default parameter-unspecific priors
   default_priors <- prior("normal(0.0,0.05)", "sd") +
     prior("normal(0.0,0.1)", "sd", coef = "Intercept") +
-    prior("lkj_corr(3.0)", "cor") +
+    prior("lkj_corr(0.8)", "cor") +
     prior("normal(0.0,5.0)") +
     prior("normal(0.0,10.0)", coef = "Intercept")
 
