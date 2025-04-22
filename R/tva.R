@@ -581,6 +581,11 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
 
   add_data(name = "N", type = "int<lower=1>")
 
+  add_data(name = "max_K", type = "int", transformed = TRUE)
+
+  add_code("transformed data", sprintf("max_K = %d;", max_K))
+
+
   if(C_mode == "equal") {
     add_param(name = "C", type = "real<lower=machine_precision()>", ctype = "real", rtype = "real", prior = ~gamma(3.5,0.035))
     s_pars <- "C"
@@ -1834,6 +1839,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
   global_pars <- if(is.null(fx$param)) names(x@stanmodel@code@df) else setdiff(names(x@stanmodel@code@df), fx$param)
 
+  acceptable <- character()
   not_converged <- character()
 
   if(length(global_pars) > 0) {
@@ -1844,7 +1850,8 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
     print(round(g_summary, digits_summary), max = prod(dim(g_summary)))
 
-    not_converged <- c(not_converged, rownames(g_summary)[g_summary[,"Rhat"] >= 1.05])
+    acceptable <- c(acceptable, rownames(g_summary)[g_summary[,"Rhat"] >= 1.05 & g_summary[,"Rhat"] < 1.1])
+    not_converged <- c(not_converged, rownames(g_summary)[g_summary[,"Rhat"] >= 1.1])
 
   }
 
@@ -1863,7 +1870,8 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
     print(round(b_summary, digits_summary), max = prod(dim(b_summary)))
 
-    not_converged <- c(not_converged, rownames(b_summary)[b_summary[,"Rhat"] >= 1.05])
+    acceptable <- c(acceptable, rownames(b_summary)[b_summary[,"Rhat"] >= 1.05 & b_summary[,"Rhat"] < 1.1])
+    not_converged <- c(not_converged, rownames(b_summary)[b_summary[,"Rhat"] >= 1.1])
 
 
     for(rf in random_factors_txt) {
@@ -1895,12 +1903,14 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
 
 
-      not_converged <- c(not_converged, rownames(s_summary)[s_summary[,"Rhat"] >= 1.05])
+      acceptable <- c(acceptable, rownames(s_summary)[s_summary[,"Rhat"] >= 1.05 & s_summary[,"Rhat"] < 1.1])
+      not_converged <- c(not_converged, rownames(s_summary)[s_summary[,"Rhat"] >= 1.1])
 
 
       w_summary <- rstan::summary(x, sprintf("w_%s", gs), probs = double(0), use_cache = FALSE)$summary
 
-      not_converged <- c(not_converged, attr(par_names, "alias")[match(rownames(w_summary)[w_summary[,"Rhat"] >= 1.05], par_names)])
+      acceptable <- c(acceptable, attr(par_names, "alias")[match(rownames(w_summary)[w_summary[,"Rhat"] >= 1.05 & w_summary[,"Rhat"] < 1.1], par_names)])
+      not_converged <- c(not_converged, attr(par_names, "alias")[match(rownames(w_summary)[w_summary[,"Rhat"] >= 1.1], par_names)])
 
 
     }
@@ -1910,8 +1920,15 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
 
 
-  if(length(not_converged)) {
-    warning("Model did not converge (Rhat >= 1.05) for ",length(not_converged)," parameter(s): ", paste(not_converged, collapse=", "))
+  if(length(acceptable) == 1L) {
+    warning("A parameter has not converged but may still be acceptable (1.05 ≤ Rhat < 1.1):", not_converged)
+  } else if(length(acceptable) > 1L) {
+    warning(length(not_converged),"parameters have not converged but may still be acceptable (1.05 ≤ Rhat < 1.1):", paste(not_converged, collapse=", "))
+  }
+  if(length(not_converged) == 1L) {
+    warning("A parameter has not converged (Rhat ≥ 1.1):", not_converged)
+  } else if(length(not_converged) > 1L) {
+    warning(length(not_converged),"parameters have not converged (Rhat ≥ 1.1):", paste(not_converged, collapse=", "))
   }
 
   invisible(x)
