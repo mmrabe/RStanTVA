@@ -381,7 +381,7 @@ parse_formula <- function(f) {
 #' model <- stantva_code(locations = 4, task = "pr")
 #' model
 #'@export
-stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"), K_mode = c("bernoulli", "free", "betabinomial"), max_K = locations, allow_guessing = FALSE, parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = NULL, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
+stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"), K_mode = c("bernoulli", "free", "binomial", "betabinomial"), max_K = locations, allow_guessing = FALSE, parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = NULL, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
 
   task <- match.arg(task)
   C_mode <- match.arg(C_mode)
@@ -659,18 +659,13 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     K_args <- "pK"
   } else if(K_mode == "betabinomial") {
     add_code("functions", includeFile("betabinomialK.stan"))
-    # TODO add prior!
     add_param(name = "aK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(0,1))
     add_param(name = "bK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(0,1))
-    #add_code("generated quantities", "real mK = nK * pK;")
     K_args <- "[aK, bK]'"
   } else if(K_mode == "binomial") {
     add_code("functions", includeFile("binomialK.stan"))
-    # TODO add prior!
-    add_param(name = "nK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real")
-    add_param(name = "pK", class = c("phi", "K"), type = "real<lower=machine_precision(),upper=1.0-machine_precision()>", ctype="real", rtype="real", prior = ~beta(2,2))
-    #add_code("generated quantities", "real mK = nK * pK;")
-    K_args <- "[nK, pK]'"
+    add_param(name = "pK", class = c("phi", "K"), type = "real<lower=0,upper=1>", ctype="real", rtype="real", dim = 1, prior = ~beta(2,2))
+    K_args <- "[pK]'"
   } else if(K_mode == "hypergeometric") {
     add_code("functions", includeFile("hypergeometricK.stan"))
     add_code(

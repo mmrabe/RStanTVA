@@ -12,7 +12,7 @@ stantva_code(
   C_mode = c("equal", "locations", "regions"),
   w_mode = c("locations", "regions", "equal"),
   t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"),
-  K_mode = c("bernoulli", "free", "betabinomial"),
+  K_mode = c("bernoulli", "free", "binomial", "betabinomial"),
   max_K = locations,
   allow_guessing = FALSE,
   parallel = isTRUE(rstan_options("threads_per_chain") > 1L),
