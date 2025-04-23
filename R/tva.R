@@ -1707,7 +1707,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
       rfs <- fx$random[[which_formula]]
       par_dim <- object@stanmodel@code@dim[parname]
       par_df <- object@stanmodel@code@df[parname]
-      ps <- c("b", paste0("w_",rfs$group))
+      ps <- c("b", if(!is.null(rfs$group)) paste0("w_",rfs$group))
       p <- extract(as(object,"stanfit"), ps)
       r <- vapply(seq_len(par_dim), function(i) {
         m <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i) else paste0("map_",parname)]]
@@ -1737,7 +1737,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
           r[,,i] <- r[,,i] / rs
         }
       }
-      if(object@stanmodel@code@df[parname] > 1) aperm(r,c(1,3,2)) else r[,,1]
+      if(object@stanmodel@code@dim[parname] > 1) aperm(r,c(1,3,2)) else r[,,1]
     }
   }, simplify = FALSE)
 }
