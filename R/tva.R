@@ -348,13 +348,13 @@ parse_formula <- function(f) {
       } else {
         tibble(formula = list(formula(call("~",fx[[2L]]))), custom = FALSE, group = clean_name(paste0(parname,"_",i,"_",deparse1(fx[[3L]]))), factor = list(fx[[3L]]))
       }
-    }) %>% bind_rows() %>% {
+    }) %>% bind_rows() %>% (function(.){
       if(nrow(.) > 0) {
         .$param <- parname
         .$factor_txt <- vapply(.$factor, deparse1, character(1))
       }
       .
-    } %>% list()
+    }) %>% list()
   )
 
 }
@@ -1858,7 +1858,7 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
   if(nrow(fx) > 0L) {
 
-    rfs <- fx$random %>% bind_rows() %>% {lapply(seq_len(nrow(.)), function(i) .[i,])} %>% lapply(function(fxi) if(!is.null(fxi$param) && x@stanmodel@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(x@stanmodel@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
+    rfs <- fx$random %>% bind_rows() %>% (function(.){lapply(seq_len(nrow(.)), function(i) .[i,])}) %>% lapply(function(fxi) if(!is.null(fxi$param) && x@stanmodel@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(x@stanmodel@code@df[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
 
     random_factors_txt <- if(nrow(rfs) > 0L) unique(rfs$factor_txt) else character()
 
@@ -1921,14 +1921,14 @@ setMethod("print", "stantvafit", function(x, digits_summary = 2, ...) {
 
 
   if(length(acceptable) == 1L) {
-    warning("A parameter has not converged but may still be acceptable (1.05 ≤ Rhat < 1.1): ", acceptable)
+    warning("A parameter has not converged but may still be acceptable (1.05 \U2264 Rhat < 1.1): ", acceptable)
   } else if(length(acceptable) > 1L) {
-    warning(length(acceptable)," parameters have not converged but may still be acceptable (1.05 ≤ Rhat < 1.1): ", paste(acceptable, collapse=", "))
+    warning(length(acceptable)," parameters have not converged but may still be acceptable (1.05 \U2264 Rhat < 1.1): ", paste(acceptable, collapse=", "))
   }
   if(length(not_converged) == 1L) {
-    warning("A parameter has not converged (Rhat ≥ 1.1): ", not_converged)
+    warning("A parameter has not converged (Rhat \U2265 1.1): ", not_converged)
   } else if(length(not_converged) > 1L) {
-    warning(length(not_converged)," parameters have not converged (Rhat ≥ 1.1): ", paste(not_converged, collapse=", "))
+    warning(length(not_converged)," parameters have not converged (Rhat \U2265 1.1): ", paste(not_converged, collapse=", "))
   }
 
   invisible(x)
@@ -1953,7 +1953,7 @@ translate_names <- function(model, data, names) {
         new_ret[match(sprintf("b[%d]", m), ret)] <- paste0(fx$param[i], "_", colnames(data$X)[m], "[",j,"]")
       }
     }
-    rfs <- if(is.null(fx$random) || nrow(bind_rows(fx$random)) == 0) tibble() else fx$random %>% bind_rows() %>% {lapply(seq_len(nrow(.)), function(i) .[i,])} %>% lapply(function(fxi) if(!is.null(fxi$param) && model@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(model@code@dim[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
+    rfs <- if(is.null(fx$random) || nrow(bind_rows(fx$random)) == 0) tibble() else fx$random %>% bind_rows() %>% (function(.){lapply(seq_len(nrow(.)), function(i) .[i,])}) %>% lapply(function(fxi) if(!is.null(fxi$param) && model@code@dim[fxi$param] > 1L) crossing(fxi, index = seq_len(model@code@dim[fxi$param])) else bind_cols(fxi, index = NA_integer_)) %>% bind_rows(tibble(group = character(), custom = logical(), index = integer())) %>% mutate(group = if_else(.data$custom | is.na(.data$index), .data$group, paste0(.data$group,"_",.data$index)))
     for(i in seq_len(nrow(rfs))) {
       param <- rfs$param[i]
       if(model@code@dim[param] == 1L) {
