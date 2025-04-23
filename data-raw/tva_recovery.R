@@ -12,10 +12,10 @@ b <- c(
   C_conditionhigh = log(100) - log(80),
   alpha_Intercept = log(0.7),
   alpha_conditionhigh = 0,
-  `aK_Intercept` = 1.0,
-  `aK_conditionhigh` = 0,
-  `bK_Intercept` = -0.4,
-  `bK_conditionhigh` = 0,
+  `mK_Intercept` = 3.5,
+  `mK_conditionhigh` = 0,
+  `sK_Intercept` = -0.7,
+  `sK_conditionhigh` = 0,
   sigma0_Intercept = 2.0,
   sigma0_conditionhigh = 0,
   mu0_Intercept = 20,
@@ -29,10 +29,10 @@ sd_subj <- c(
   C_conditionhigh = 0.05,
   alpha_Intercept = 0.2,
   alpha_conditionhigh = 0.05,
-  `aK_Intercept` = 0.36,
-  `aK_conditionhigh` = 0,
-  `bK_Intercept` = 1.0,
-  `bK_conditionhigh` = 0,
+  `mK_Intercept` = 0.75,
+  `mK_conditionhigh` = 0,
+  `sK_Intercept` = 0.1,
+  `sK_conditionhigh` = 0,
   sigma0_Intercept = 0.2,
   sigma0_conditionhigh = 0,
   mu0_Intercept = 10,
@@ -45,7 +45,7 @@ cor_subj <- diag(length(sd_subj))
 dimnames(cor_subj) <- list(names(sd_subj), names(sd_subj))
 cor_subj["C_Intercept","C_conditionhigh"] <- cor_subj["C_conditionhigh","C_Intercept"] <- -.2
 cor_subj["C_Intercept","alpha_Intercept"] <- cor_subj["alpha_Intercept","C_Intercept"] <- -.3
-cor_subj["aK_Intercept","bK_Intercept"] <- cor_subj["bK_Intercept","aK_Intercept"] <- 0.68
+cor_subj["mK_Intercept","sK_Intercept"] <- cor_subj["mK_Intercept","sK_Intercept"] <- 0.2
 
 z_subj <- mvrnorm(50, rep(0, length(sd_subj)), cor_subj)
 
@@ -92,8 +92,8 @@ subject_coefs <- crossing(
     w = vapply(1, function(i) exp((b[sprintf("w_Intercept[%d]",i)] + subject_ranefs[j, sprintf("w_Intercept[%d]",i)]) + x_condition * (b[sprintf("w_conditionhigh[%d]",i)] + subject_ranefs[j, sprintf("w_conditionhigh[%d]",i)])), double(n())),
     mu0 = (b["mu0_Intercept"] + subject_ranefs[j, "mu0_Intercept"]) + x_condition * (b["mu0_conditionhigh"] + subject_ranefs[j, "mu0_conditionhigh"]),
     sigma0 = exp(b["sigma0_Intercept"] + subject_ranefs[j, "sigma0_Intercept"]) + x_condition * (b["sigma0_conditionhigh"] + subject_ranefs[j, "sigma0_conditionhigh"]),
-    aK = exp((b["aK_Intercept"] + subject_ranefs[j, "aK_Intercept"]) + x_condition * (b["aK_conditionhigh"] + subject_ranefs[j, "aK_conditionhigh"])),
-    bK = exp((b["bK_Intercept"] + subject_ranefs[j, "bK_Intercept"]) + x_condition * (b["bK_conditionhigh"] + subject_ranefs[j, "bK_conditionhigh"])),
+    mK = (b["mK_Intercept"] + subject_ranefs[j, "mK_Intercept"]) + x_condition * (b["mK_conditionhigh"] + subject_ranefs[j, "mK_conditionhigh"]),
+    sK = exp((b["sK_Intercept"] + subject_ranefs[j, "sK_Intercept"]) + x_condition * (b["sK_conditionhigh"] + subject_ranefs[j, "sK_conditionhigh"])),
   ) %>%
   rename(subject = j) %>%
   dplyr::select(-x_condition) %>%
@@ -110,12 +110,14 @@ for(i in seq_len(nrow(tva_recovery))) {
   w <- w / sum(w)
   mu0 <- tva_recovery$true_values$mu0[i]
   sigma0 <- tva_recovery$true_values$sigma0[i]
-  aK <- tva_recovery$true_values$aK[i]
-  bK <- tva_recovery$true_values$bK[i]
+  mK <- tva_recovery$true_values$mK[i]
+  sK <- tva_recovery$true_values$sK[i]
 
   Ss <- which(tva_recovery$S[i,] == 1L)
   v <- C/1000 * w[Ss] / sum(w[Ss])
-  K <- rbinom(1, ncol(tva_recovery$S), rbeta(1, aK, bK))
+  K <- floor(rnorm(1, mK, sK))
+  if(K < 0) K <- 0
+  if(K > ncol(tva_recovery$S)) K <- ncol(tva_recovery$S)
   t0 <- rnorm(1, mu0, sigma0)
   processing_times <- rexp(length(v), v) + t0
   Rs <- Ss[rank(processing_times) <= K & processing_times <= tva_recovery$T[i] & !tva_recovery$D[i,]]
