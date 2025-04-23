@@ -513,7 +513,6 @@ tva_fit_nested
 #> mu0    10.71    0.07 3.90 1.32 8.70 11.25 13.30 16.91 2789.80    1
 #> sigma0  6.27    0.05 3.46 1.03 3.81  5.82  8.22 14.30 4072.46    1
 #> alpha   1.01    0.00 0.28 0.55 0.83  0.98  1.17  1.63 5856.68    1
-#> Warning: Unknown or uninitialised column: `param`.
 #> 
 #> Fixed effects:
 #>                  mean se_mean   sd  2.5%  25%   50%  75% 97.5%   n_eff Rhat
