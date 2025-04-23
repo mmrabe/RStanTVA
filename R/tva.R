@@ -381,7 +381,7 @@ parse_formula <- function(f) {
 #' model <- stantva_code(locations = 4, task = "pr")
 #' model
 #'@export
-stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"), K_mode = c("bernoulli", "free", "binomial", "betabinomial"), max_K = locations, allow_guessing = FALSE, parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = NULL, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
+stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"), K_mode = c("bernoulli", "free", "binomial", "betabinomial", "hypergeometric", "probit"), max_K = locations, allow_guessing = FALSE, parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = NULL, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
 
   task <- match.arg(task)
   C_mode <- match.arg(C_mode)
@@ -667,6 +667,11 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     add_param(name = "aK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(0,1))
     add_param(name = "bK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(0,1))
     K_args <- "[aK, bK]'"
+  } else if(K_mode == "probit") {
+    add_code("functions", includeFile("probitK.stan"))
+    add_param(name = "mK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~normal(3.5,1))
+    add_param(name = "sK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(0,1))
+    K_args <- "[mK, sK]'"
   } else if(K_mode == "binomial") {
     add_code("functions", includeFile("binomialK.stan"))
     add_param(name = "pK", class = c("phi", "K"), type = "real<lower=0,upper=1>", ctype="real", rtype="real", dim = 1, prior = ~beta(2,2))
