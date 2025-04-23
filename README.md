@@ -6,6 +6,10 @@
 <!-- badges: start -->
 
 [![R](https://github.com/mmrabe/RStanTVA/actions/workflows/rpkg.yml/badge.svg)](https://github.com/mmrabe/RStanTVA/actions/workflows/rpkg.yml)
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![CRAN
+status](https://www.r-pkg.org/badges/version/RStanTVA)](https://CRAN.R-project.org/package=RStanTVA)
 <!-- badges: end -->
 
 RStanTVA is an R package containing the StanTVA library and numerous
@@ -14,7 +18,13 @@ convenience functions for generating, compiling, fitting, and analyzing
 
 ## Installation
 
-You can install the development version of RStanTVA from
+The latest version of the package can be installed from CRAN using:
+
+``` r
+install.packages("RStanTVA")
+```
+
+Alternatively, you can install the development version of RStanTVA from
 [GitHub](https://github.com/mmrabe/RStanTVA) with:
 
 ``` r
