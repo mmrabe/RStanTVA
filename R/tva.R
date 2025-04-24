@@ -196,7 +196,6 @@ prepare_data <- function(trials, model, require_outcome = TRUE, contrasts = list
   fs <- mc@config$formula
 
   required_columns <- if(isFALSE(require_outcome)) c() else if(mc@config$task == "wr") c("R","S","T") else if(mc@config$task == "pr") c("R","S","D","T") else stop("Unsupported task ",sQuote(mc@config$task),"!")
-  if(isTRUE(mc@config$allow_guessing)) required_columns <- c(required_columns, "E", "I")
 
 
   if(any(!required_columns %in% colnames(trials))) {
@@ -370,7 +369,6 @@ parse_formula <- function(f) {
 #' @param t0_mode The mode/family for the $t_0$ parameter.
 #' @param K_mode The mode for the $K$ parameter.
 #' @param max_K The upper bound of $K$.
-#' @param allow_guessing (logical) Whether to allow guessing.
 #' @param parallel (logical) Whether to use parallel chains.
 #' @param save_log_lik (logical) Whether to save the log likelihood (needed for likelihood-based model comparison such as loo).
 #' @param priors The priors.
@@ -391,7 +389,6 @@ stantva_code <- function(
     t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"),
     K_mode = c("bernoulli", "free", "binomial", "betabinomial", "hypergeometric", "probit"),
     max_K = locations,
-    allow_guessing = FALSE,
     parallel = isTRUE(rstan_options("threads_per_chain") > 1L),
     save_log_lik = FALSE,
     priors = NULL,
@@ -748,12 +745,6 @@ stantva_code <- function(
   add_data(name = "S", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), ctype = sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
   add_data(name = "R", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), ctype = sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
 
-  if(allow_guessing) {
-    add_data(name = "E", class="x_i", type = "array[N] int<lower=0>", ctype = "int", rtype="int")
-    add_data(name = "I", class="x_i", type = "array[N] int<lower=0>", ctype = "int", rtype="int")
-    add_param(name = "g", class = "phi", type = "real<lower=machine_precision(),upper=1.0-machine_precision()>", ctype="real", rtype="real", prior = ~beta(2,20))
-  }
-
 
   if(task == "wr") {
     v_data <- c("nS","S")
@@ -768,19 +759,10 @@ stantva_code <- function(
     )
     l_data <- union(c("S","R","T","nS"), v_data)
     l_pars <- c(v_pars, if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
-    if(allow_guessing) {
-      l_pars <- c(l_pars, "g")
-      l_data <- c(l_data, "E", "I")
-      l_body <- c(
-        sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
-        sprintf("log_lik = tva_wrg_log(R, S, %s, %s, %s, v, g, E, I);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
-      )
-    } else {
-      l_body <- c(
-        sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
-        sprintf("log_lik = tva_wr_log(R, S, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
-      )
-    }
+    l_body <- c(
+      sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+      sprintf("log_lik = tva_wr_log(R, S, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+    )
     p_data <- setdiff(l_data, "R")
     p_pars <- l_pars
     p_body <- c(
@@ -815,19 +797,10 @@ stantva_code <- function(
     add_param(name = "alpha", type = "real<lower=machine_precision()>", ctype = "real", rtype="real", prior = ~lognormal(-0.4,0.6))
     l_data <- union(c("S","D","R","T"), v_data)
     l_pars <- c(v_pars,if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
-    if(allow_guessing) {
-      l_pars <- c(l_pars, "g")
-      l_data <- c(l_data, "E", "I")
-      l_body <- c(
-        sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
-        sprintf("log_lik = tva_prg_log(R, S, D, %s, %s, %s, v, g, E, I);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
-      )
-    } else {
-      l_body <- c(
-        sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
-        sprintf("log_lik = tva_pr_log(R, S, D, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
-      )
-    }
+    l_body <- c(
+      sprintf("vector[nS] v = calculate_v(%s);", paste(c(datsig(names_back = v_data, types = FALSE), parsig(v_pars, types = FALSE)), collapse=", ")),
+      sprintf("log_lik = tva_pr_log(R, S, D, %s, %s, %s, v);", if(is.null(parameters$t0)) "T" else "T - t0", t0_args, K_args)
+    )
     p_data <- setdiff(l_data, "R")
     p_pars <- l_pars
     p_body <- c(
