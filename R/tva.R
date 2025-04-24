@@ -587,7 +587,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
 
 
   if(C_mode == "equal") {
-    add_param(name = "C", type = "real<lower=machine_precision()>", ctype = "real", rtype = "real", prior = ~gamma(3.5,0.035))
+    add_param(name = "C", type = "real<lower=machine_precision()>", ctype = "real", rtype = "real", prior = ~lognormal(4.5,0.6))
     s_pars <- "C"
     s_body <- c(
       sprintf("vector[%1$d] s = rep_vector(C, %1$d);", locations)
@@ -603,7 +603,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
         })
       )
     )
-    add_param(name = "C", type = sprintf("vector<lower=machine_precision()>[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = substitute(~gamma(a, 0.035), list(a=3.5/length(regions))))
+    add_param(name = "C", type = sprintf("vector<lower=machine_precision()>[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = substitute(~lognormal(a, 0.6), list(a=4.5-log(length(regions)))))
     for(i in seq_along(regions)) {
       #add_code(
       #  "generated quantities",
@@ -614,7 +614,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   } else if(C_mode == "locations") {
     s_body <- NULL
     s_pars <- "s"
-    add_param(name = "s", type = sprintf("vector<lower=machine_precision()>[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype="vector", dim = locations, prior = ~gamma(3.5,0.035))
+    add_param(name = "s", type = sprintf("vector<lower=machine_precision()>[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype="vector", dim = locations, prior = substitute(~lognormal(a, 0.6), list(a=4.5-log(locations))))
     for(i in seq_along(regions)) {
       #add_code(
       #  "generated quantities",
@@ -669,8 +669,8 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
     K_args <- "[aK, bK]'"
   } else if(K_mode == "probit") {
     add_code("functions", includeFile("probitK.stan"))
-    add_param(name = "mK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~normal(3.5,1))
-    add_param(name = "sK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(0,1))
+    add_param(name = "mK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~normal(3.5,0.5))
+    add_param(name = "sK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(-0.5,0.25))
     K_args <- "[mK, sK]'"
   } else if(K_mode == "binomial") {
     add_code("functions", includeFile("binomialK.stan"))
@@ -703,7 +703,7 @@ stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions
   } else if(t0_mode == "gaussian") {
     add_code("functions", includeFile("gaussiant0.stan"))
     add_param(name = "mu0", class = c("phi","t0"), type = "real", ctype="real", rtype="real", prior = ~normal(20, 15))
-    add_param(name = "sigma0", class = c("phi","t0"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", prior = ~gamma(2,0.2))
+    add_param(name = "sigma0", class = c("phi","t0"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", prior = ~lognormal(2,.6))
     t0_args <- "[mu0, sigma0]'"
   } else if(t0_mode == "exponential") {
     # TODO implement default priors!
