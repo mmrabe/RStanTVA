@@ -381,7 +381,23 @@ parse_formula <- function(f) {
 #' model <- stantva_code(locations = 4, task = "pr")
 #' model
 #'@export
-stantva_code <- function(formula = NULL, locations, task = c("wr","pr"), regions = list(), C_mode = c("equal","locations","regions"), w_mode = c("locations","regions","equal"), t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"), K_mode = c("bernoulli", "free", "binomial", "betabinomial", "hypergeometric", "probit"), max_K = locations, allow_guessing = FALSE, parallel = isTRUE(rstan_options("threads_per_chain") > 1L), save_log_lik = FALSE, priors = NULL, sanity_checks = TRUE, debug_neginf_loglik = FALSE) {
+stantva_code <- function(
+    formula = NULL,
+    locations,
+    task = c("wr","pr"),
+    regions = list(),
+    C_mode = c("equal","locations","regions"),
+    w_mode = c("locations","regions","equal"),
+    t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"),
+    K_mode = c("bernoulli", "free", "binomial", "betabinomial", "hypergeometric", "probit"),
+    max_K = locations,
+    allow_guessing = FALSE,
+    parallel = isTRUE(rstan_options("threads_per_chain") > 1L),
+    save_log_lik = FALSE,
+    priors = NULL,
+    sanity_checks = TRUE,
+    debug_neginf_loglik = FALSE
+  ) {
 
   task <- match.arg(task)
   C_mode <- match.arg(C_mode)
