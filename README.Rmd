@@ -44,7 +44,7 @@ remotes::install_github("mmrabe/RStanTVA")
 
 ## Loading the library
 
-```{r example-load, results=FALSE}
+```{r example-load, results = FALSE}
 library(RStanTVA)
 library(tidyverse)
 ```
@@ -83,10 +83,10 @@ Then we can define the TVA model that we want to fit to the data. Here, we are d
 tva_model <- stantva_model(
   locations = 6,
   task = "pr",
-  w_mode = "locations",
+  w_mode = "regions",
+  regions = list(1:3, 4:6),
   t0_mode = "gaussian",
-  K_mode = "free",
-  sanity_checks = FALSE
+  K_mode = "probit"
 )
 ```
 
@@ -95,6 +95,7 @@ If we wanted to look at the generated Stan code, this would be it:
 ```{r show-model-code, results = 'asis', echo = FALSE}
 conf <- tva_model@code@config
 conf$parallel <- FALSE
+conf$sanity_checks <- FALSE
 cat("``` stan\n")
 write_stantva_model(do.call(stantva_code, conf))
 cat("```\n")
@@ -106,7 +107,7 @@ We can now fit `tva_model` to the `tva_data` using maximum-likelihood estimation
 
 ```{r example-fit-mle}
 tva_fit_mle <- optimizing(tva_model, tva_data)
-tva_fit_mle$par[c("C","alpha","mu0","sigma0")]
+tva_fit_mle$par[c("C","alpha","mu0","sigma0","mK","sK")]
 ```
 
 
@@ -139,10 +140,10 @@ tva_model_nested <- stantva_model(
   ),
   locations = 6,
   task = "pr",
-  w_mode = "locations",
+  w_mode = "regions",
+  regions = list(1:3, 4:6),
   t0_mode = "gaussian",
-  K_mode = "free",
-  sanity_checks = FALSE
+  K_mode = "probit"
 )
 ```
 
@@ -159,6 +160,7 @@ The generated Stan code looks like this:
 ```{r show-nested-model-code, results = 'asis', echo = FALSE}
 conf <- tva_model_nested@code@config
 conf$parallel <- FALSE
+conf$sanity_checks <- FALSE
 cat("``` stan\n")
 write_stantva_model(do.call(stantva_code, conf))
 cat("```\n")
@@ -190,29 +192,33 @@ priors <-
   prior(normal(4,.2),dpar=C,coef=Intercept)+
   prior(normal(0,.07),dpar=alpha)+
   prior(normal(-0.2,.1),dpar=alpha,coef=Intercept)+
-  prior(normal(0,.03),dpar=pK)+
-  prior(normal(0,.1),dpar=pK,coef=Intercept)+
+  prior(normal(3.5,.5),dpar=mK,coef=Intercept)+
+  prior(normal(0,.1),dpar=mK)+
+  prior(normal(-0.5,.5),dpar=sK,coef=Intercept)+
+  prior(normal(0,.1),dpar=sK)+
   prior(normal(0,5),dpar=mu0)+
   prior(normal(30,15),dpar=mu0,coef=Intercept)+
   prior(normal(0,.04),dpar=sigma0)+
   prior(normal(0,.2),dpar=sigma0,coef=Intercept)+
-  prior(normal(0,.05),dpar=w)+
-  prior(normal(0,0.1),dpar=w,coef=Intercept)
+  prior(normal(0,.05),dpar=r)+
+  prior(normal(0,0.1),dpar=r,coef=Intercept)
 
 tva_hierarchical_model <- stantva_model(
   formula = list(
     log(C) ~ 1 + condition + (1 + condition | C_alpha | subject),
-    log(w) ~ 1 + (1 | subject),
-    log(pK) ~ 1 + (1 | subject),
+    log(r) ~ 1 + (1 | subject),
+    log(mK) ~ 1 + (1 | K | subject),
+    log(sK) ~ 1 + (1 | K | subject),
     mu0 ~ 1 + (1 | subject),
     log(sigma0) ~ 1 + (1 | subject),
     log(alpha) ~ 1 + (1 | C_alpha | subject)
   ),
   locations = 6,
   task = "pr",
-  w_mode = "locations",
+  w_mode = "regions",
+  regions = list(1:3, 4:6),
   t0_mode = "gaussian",
-  K_mode = "free",
+  K_mode = "probit",
   priors = priors
 )
 
@@ -229,12 +235,12 @@ tva_hierarchical_subset <- tva_recovery %>% filter(subject <= 10 & trial <= 100)
 tva_hierarchical_fit <- sampling(tva_hierarchical_model, tva_hierarchical_subset)
 ```
 
-```{r load-hierarchical-fit, include=FALSE}
+```{r load-hierarchical-fit, include=FALSE, eval = FALSE}
 tva_hierarchical_fit <- read_stantva_fit(sprintf("man/cache/fit-small-hierarchical-chain%d.rds", 1:4))
 ```
 
 
-```{r show-hierarchical-fit}
+```{r show-hierarchical-fit, eval = FALSE}
 tva_hierarchical_fit
 ```
 

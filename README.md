@@ -94,21 +94,21 @@ tva_data
 #> # Groups:   subject [1]
 #>    subject trial     T condition    nD S[,1]  [,2] D[,1] R[,1] true_values$t[,1]
 #>      <int> <int> <dbl> <fct>     <int> <int> <int> <int> <int>             <dbl>
-#>  1      20     2  33.3 high          0     1     1     0     1              34.5
-#>  2      20     3  16.6 high          0     1     1     0     0              41.4
-#>  3      20     4 150   high          4     1     1     1     0              56.8
-#>  4      20    11 150   high          3     1     1     0     1              33.2
-#>  5      20    12  33.3 high          0     1     1     0     0              22.5
-#>  6      20    14  33.3 high          0     1     1     0     0             122. 
-#>  7      20    15  50   high          0     1     1     0     0              79.8
-#>  8      20    17  33.3 high          0     1     1     0     0              28.1
-#>  9      20    18 150   high          3     1     1     0     1              49.1
-#> 10      20    19 150   high          4     1     1     0     0              66.1
+#>  1      20     1  16.6 high          0     1     1     0     0              37.0
+#>  2      20     5 100   high          0     1     1     0     0              40.5
+#>  3      20     7 150   high          2     1     1     1     0             302. 
+#>  4      20    11 150   high          3     1     1     0     0             123. 
+#>  5      20    12  50   high          0     1     1     0     0              36.8
+#>  6      20    15  33.3 high          0     1     1     0     0              75.3
+#>  7      20    16 100   high          0     1     1     0     0             115. 
+#>  8      20    17  16.6 high          0     1     1     0     0              74.6
+#>  9      20    18 150   high          2     1     1     1     0              71.3
+#> 10      20    19 100   high          0     1     1     0     1              49.9
 #> # ℹ 107 more rows
-#> # ℹ 13 more variables: S[3:6] <int>, D[2:6] <int>, R[2:6] <int>,
-#> #   true_values$t[2:6] <dbl>, true_values$v <dbl[,6]>, $t0 <dbl>, $K <int>,
-#> #   $C <dbl>, $alpha <dbl>, $w <dbl[,6]>, $mu0 <dbl>, $sigma0 <dbl>,
-#> #   $pK <dbl[,7]>
+#> # ℹ 14 more variables: S[3:6] <int>, D[2:6] <int>, R[2:6] <int>,
+#> #   true_values$t[2:6] <dbl>, true_values$v <dbl[,6]>, $t0 <dbl>, $K <dbl>,
+#> #   $C <dbl>, $alpha <dbl>, $w <dbl[,2]>, $mu0 <dbl>, $sigma0 <dbl>, $mK <dbl>,
+#> #   $sK <dbl>
 ```
 
 Then we can define the TVA model that we want to fit to the data. Here,
@@ -121,10 +121,10 @@ we can generate it as follows:
 tva_model <- stantva_model(
   locations = 6,
   task = "pr",
-  w_mode = "locations",
+  w_mode = "regions",
+  regions = list(1:3, 4:6),
   t0_mode = "gaussian",
-  K_mode = "free",
-  sanity_checks = FALSE
+  K_mode = "probit"
 )
 ```
 
@@ -134,10 +134,10 @@ If we wanted to look at the generated Stan code, this would be it:
 /************************************************************************************
  *  StanTVA
  *  =======
- *  This is a StanTVA program, generated with RStanTVA (v0.2.0) Please cite as:
+ *  This is a StanTVA program, generated with RStanTVA (v0.3.0) Please cite as:
  *  
  *  Rabe M, Kyllingsbæk S (2025). _RStanTVA: TVA Models in 'Stan' using 'R'
- *  and 'StanTVA'_. R package version 0.2.0,
+ *  and 'StanTVA'_. R package version 0.3.0,
  *  <https://github.com/mmrabe/RStanTVA>.
  *  
  *  Configuration
@@ -145,11 +145,11 @@ If we wanted to look at the generated Stan code, this would be it:
  *  - formula = NULL
  *  - locations = 6
  *  - task = pr
- *  - regions = list()
+ *  - regions = list(1:3, 4:6)
  *  - C_mode = equal
- *  - w_mode = locations
+ *  - w_mode = regions
  *  - t0_mode = gaussian
- *  - K_mode = free
+ *  - K_mode = probit
  *  - max_K = 6
  *  - allow_guessing = FALSE
  *  - parallel = FALSE
@@ -166,9 +166,16 @@ If we wanted to look at the generated Stan code, this would be it:
 
 functions {
     #include tva.stan
-    #include freeK.stan
+    #include probitK.stan
     #include gaussiant0.stan
-    vector calculate_v(data int nS, data array[] int S, data array[] int D, vector w, real C, real alpha) {
+    vector calculate_v(data int nS, data array[] int S, data array[] int D, vector r, real C, real alpha) {
+        vector[6] w;
+        w[1] = r[1]/3.0;
+        w[2] = r[1]/3.0;
+        w[3] = r[1]/3.0;
+        w[4] = r[2]/3.0;
+        w[5] = r[2]/3.0;
+        w[6] = r[2]/3.0;
         vector[6] s = rep_vector(C, 6);
         array[nS] int Ss = get_matches(S);
         vector[6] w_alpha = w;
@@ -177,10 +184,10 @@ functions {
         for(i in 1:nS) if(v[i] < machine_precision()) v[i] = machine_precision();
         return v/1000.0;
     }
-    real log_lik_single(data array[] int S, data array[] int D, data array[] int R, data int nS, data real T, vector w, real C, real alpha, vector pK, real mu0, real sigma0) {
+    real log_lik_single(data array[] int S, data array[] int D, data array[] int R, data int nS, data real T, vector r, real C, real alpha, real mK, real sK, real mu0, real sigma0) {
         real log_lik;
-        vector[nS] v = calculate_v(nS, S, D, to_vector(w), C, alpha);
-        log_lik = tva_pr_log(R, S, D, T, [mu0, sigma0]', pK, v);
+        vector[nS] v = calculate_v(nS, S, D, to_vector(r), C, alpha);
+        log_lik = tva_pr_log(R, S, D, T, [mu0, sigma0]', [mK, sK]', v);
         return log_lik;
     }
 }
@@ -192,28 +199,32 @@ data {
     array[N,6] int<lower=0,upper=1> D;
 }
 transformed data {
+    int max_K;
+    max_K = 6;
     array[N] int nS;
     for(i in 1:N) nS[i] = sum(S[i,]);
     int total_nS = sum(nS);
 }
 parameters {
     real<lower=machine_precision()> C;
-    simplex[6] w;
-    simplex[7] pK;
+    simplex[2] r;
+    real<lower=machine_precision()> mK;
+    real<lower=machine_precision()> sK;
     real mu0;
     real<lower=machine_precision()> sigma0;
     real<lower=machine_precision()> alpha;
 }
 model {
     C ~ gamma(3.5, 0.035);
-    w ~ lognormal(0, 0.5);
-    pK ~ lognormal(0, 0.5);
+    r[:1]/r[2] ~ lognormal(0, 0.2);
+    mK ~ normal(3.5, 1);
+    sK ~ lognormal(0, 1);
     mu0 ~ normal(20, 15);
     sigma0 ~ gamma(2, 0.2);
     alpha ~ lognormal(-0.4, 0.6);
     // likelihood (only if prior != 0)
     if(target() != negative_infinity()) {
-        for(i in 1:N) target += log_lik_single(S[i], D[i], R[i], nS[i], T[i], to_vector(w), C, alpha, to_vector(pK), mu0, sigma0);
+        for(i in 1:N) target += log_lik_single(S[i], D[i], R[i], nS[i], T[i], to_vector(r), C, alpha, mK, sK, mu0, sigma0);
     }
 }
 ```
@@ -235,9 +246,9 @@ estimation (MLE):
 
 ``` r
 tva_fit_mle <- optimizing(tva_model, tva_data)
-tva_fit_mle$par[c("C","alpha","mu0","sigma0")]
-#>           C       alpha         mu0      sigma0 
-#> 103.6942724   0.9400363  13.9074017   4.4078324
+tva_fit_mle$par[c("C","alpha","mu0","sigma0","mK","sK")]
+#>           C       alpha         mu0      sigma0          mK          sK 
+#> 103.6244753   0.6122754  22.7355311   9.4198683   3.0178574   2.1132272
 ```
 
 … or using Bayesian HMC sampling:
@@ -248,43 +259,38 @@ tva_fit <- sampling(tva_model, tva_data)
 
 ``` r
 tva_fit
-#> StanTVA model with 6 free parameter(s), fitted with 4  chains, each with iter=2000; warmup=1000; thin=1
+#> StanTVA model with 7 free parameter(s), fitted with 4  chains, each with iter=2000; warmup=1000; thin=1
 #> 
 #> Model configuration:
 #> locations = 6
 #> task = "pr"
-#> regions = list()
+#> regions = list(1:3, 4:6)
 #> C_mode = "equal"
-#> w_mode = "locations"
+#> w_mode = "regions"
 #> t0_mode = "gaussian"
-#> K_mode = "free"
+#> K_mode = "probit"
 #> max_K = 6
 #> allow_guessing = FALSE
 #> parallel = TRUE
 #> save_log_lik = FALSE
-#> sanity_checks = FALSE
+#> sanity_checks = TRUE
 #> debug_neginf_loglik = FALSE
 #> Warning: Unknown or uninitialised column: `param`.
 #> 
 #> Global parameters:
-#>          mean se_mean    sd  2.5%   25%    50%    75%  97.5%   n_eff Rhat
-#> C      106.86    0.56 29.58 62.48 85.82 102.58 122.46 176.85 2759.20    1
-#> w[1]     0.14    0.00  0.02  0.10  0.13   0.14   0.15   0.18 4640.87    1
-#> w[2]     0.22    0.00  0.03  0.17  0.20   0.22   0.24   0.28 4516.45    1
-#> w[3]     0.12    0.00  0.02  0.08  0.11   0.12   0.13   0.16 5781.36    1
-#> w[4]     0.16    0.00  0.02  0.12  0.14   0.16   0.18   0.21 4003.64    1
-#> w[5]     0.19    0.00  0.03  0.14  0.17   0.19   0.21   0.24 4137.62    1
-#> w[6]     0.17    0.00  0.02  0.12  0.15   0.17   0.18   0.22 4426.74    1
-#> pK[1]    0.11    0.00  0.02  0.07  0.09   0.10   0.12   0.15 4288.52    1
-#> pK[2]    0.11    0.00  0.03  0.06  0.09   0.11   0.13   0.17 4105.34    1
-#> pK[3]    0.20    0.00  0.04  0.13  0.18   0.20   0.23   0.28 4097.63    1
-#> pK[4]    0.22    0.00  0.04  0.15  0.19   0.22   0.24   0.30 4694.32    1
-#> pK[5]    0.12    0.00  0.03  0.07  0.10   0.12   0.14   0.18 4192.42    1
-#> pK[6]    0.13    0.00  0.03  0.08  0.10   0.12   0.15   0.19 4244.12    1
-#> pK[7]    0.12    0.00  0.03  0.07  0.10   0.12   0.14   0.19 3658.44    1
-#> mu0     13.07    0.09  4.46  2.72 10.66  13.56  16.01  20.82 2242.50    1
-#> sigma0   7.33    0.06  3.97  1.48  4.48   6.69   9.48  16.56 3735.63    1
-#> alpha    1.07    0.01  0.38  0.50  0.81   1.02   1.27   1.99 3474.06    1
+#>         mean se_mean    sd 2.5%   25%   50%    75%  97.5% n_eff  Rhat
+#> C      84.52   35.28 56.17 0.15 32.78 95.51 121.83 182.97  2.53  2.12
+#> r[1]    0.44    0.06  0.08 0.31  0.37  0.48   0.50   0.54  2.16  3.51
+#> r[2]    0.56    0.06  0.08 0.46  0.50  0.52   0.63   0.69  2.16  3.51
+#> mK      3.04    0.02  0.08 2.87  2.99  3.06   3.08   3.18 20.33  1.07
+#> sK      2.34    0.22  0.44 1.57  1.98  2.30   2.86   2.95  3.93  1.41
+#> mu0    17.22    7.04 10.57 0.19  6.18 20.96  25.02  30.70  2.26  2.88
+#> sigma0  9.80    1.73  4.28 4.03  5.79  9.24  12.71  19.41  6.10  1.22
+#> alpha   1.77    1.35  1.92 0.41  0.59  0.72   2.34   5.08  2.01 14.70
+#> Warning in .local(x, ...): A parameter has not converged but may still be
+#> acceptable (1.05 ≤ Rhat < 1.1): mK
+#> Warning in .local(x, ...): 7 parameters have not converged (Rhat ≥ 1.1): C,
+#> r[1], r[2], sK, mu0, sigma0, alpha
 ```
 
 ## Nested example
@@ -302,21 +308,21 @@ tva_data_nested
 #> # Groups:   subject [1]
 #>    subject trial     T condition    nD S[,1]  [,2] D[,1] R[,1] true_values$t[,1]
 #>      <int> <int> <dbl> <fct>     <int> <int> <int> <int> <int>             <dbl>
-#>  1      20     1  16.6 low           0     1     1     0     0              39.3
-#>  2      20     2  33.3 high          0     1     1     0     1              34.5
-#>  3      20     3  16.6 high          0     1     1     0     0              41.4
-#>  4      20     4 150   high          4     1     1     1     0              56.8
-#>  5      20     5  16.6 low           0     1     1     0     0              99.0
-#>  6      20     6 100   low           0     1     1     0     1              29.0
-#>  7      20     7 150   low           0     1     1     0     0              72.7
-#>  8      20     8 150   low           0     1     1     0     1              28.6
-#>  9      20     9 150   low           2     1     1     1     0              33.7
-#> 10      20    10  16.6 low           0     1     1     0     0              79.0
+#>  1      20     1  16.6 high          0     1     1     0     0              37.0
+#>  2      20     2 150   low           4     1     1     1     0             298. 
+#>  3      20     3 150   low           0     1     1     0     0             126. 
+#>  4      20     4 200   low           0     1     1     0     0              75.9
+#>  5      20     5 100   high          0     1     1     0     0              40.5
+#>  6      20     6 150   low           0     1     1     0     0              70.4
+#>  7      20     7 150   high          2     1     1     1     0             302. 
+#>  8      20     8 150   low           2     1     1     0     1             178. 
+#>  9      20     9  50   low           0     1     1     0     1             146. 
+#> 10      20    10  16.6 low           0     1     1     0     0              63.8
 #> # ℹ 224 more rows
-#> # ℹ 13 more variables: S[3:6] <int>, D[2:6] <int>, R[2:6] <int>,
-#> #   true_values$t[2:6] <dbl>, true_values$v <dbl[,6]>, $t0 <dbl>, $K <int>,
-#> #   $C <dbl>, $alpha <dbl>, $w <dbl[,6]>, $mu0 <dbl>, $sigma0 <dbl>,
-#> #   $pK <dbl[,7]>
+#> # ℹ 14 more variables: S[3:6] <int>, D[2:6] <int>, R[2:6] <int>,
+#> #   true_values$t[2:6] <dbl>, true_values$v <dbl[,6]>, $t0 <dbl>, $K <dbl>,
+#> #   $C <dbl>, $alpha <dbl>, $w <dbl[,2]>, $mu0 <dbl>, $sigma0 <dbl>, $mK <dbl>,
+#> #   $sK <dbl>
 ```
 
 We can now define a model for partial report of 6 display locations with
@@ -330,10 +336,10 @@ tva_model_nested <- stantva_model(
   ),
   locations = 6,
   task = "pr",
-  w_mode = "locations",
+  w_mode = "regions",
+  regions = list(1:3, 4:6),
   t0_mode = "gaussian",
-  K_mode = "free",
-  sanity_checks = FALSE
+  K_mode = "probit"
 )
 ```
 
@@ -355,10 +361,10 @@ The generated Stan code looks like this:
 /************************************************************************************
  *  StanTVA
  *  =======
- *  This is a StanTVA program, generated with RStanTVA (v0.2.0) Please cite as:
+ *  This is a StanTVA program, generated with RStanTVA (v0.3.0) Please cite as:
  *  
  *  Rabe M, Kyllingsbæk S (2025). _RStanTVA: TVA Models in 'Stan' using 'R'
- *  and 'StanTVA'_. R package version 0.2.0,
+ *  and 'StanTVA'_. R package version 0.3.0,
  *  <https://github.com/mmrabe/RStanTVA>.
  *  
  *  Configuration
@@ -366,11 +372,11 @@ The generated Stan code looks like this:
  *  - formula = list(log(C) ~ 1 + condition)
  *  - locations = 6
  *  - task = pr
- *  - regions = list()
+ *  - regions = list(1:3, 4:6)
  *  - C_mode = equal
- *  - w_mode = locations
+ *  - w_mode = regions
  *  - t0_mode = gaussian
- *  - K_mode = free
+ *  - K_mode = probit
  *  - max_K = 6
  *  - allow_guessing = FALSE
  *  - parallel = FALSE
@@ -387,9 +393,16 @@ The generated Stan code looks like this:
 
 functions {
     #include tva.stan
-    #include freeK.stan
+    #include probitK.stan
     #include gaussiant0.stan
-    vector calculate_v(data int nS, data array[] int S, data array[] int D, vector w, real alpha, real C) {
+    vector calculate_v(data int nS, data array[] int S, data array[] int D, vector r, real alpha, real C) {
+        vector[6] w;
+        w[1] = r[1]/3.0;
+        w[2] = r[1]/3.0;
+        w[3] = r[1]/3.0;
+        w[4] = r[2]/3.0;
+        w[5] = r[2]/3.0;
+        w[6] = r[2]/3.0;
         vector[6] s = rep_vector(C, 6);
         array[nS] int Ss = get_matches(S);
         vector[6] w_alpha = w;
@@ -398,10 +411,10 @@ functions {
         for(i in 1:nS) if(v[i] < machine_precision()) v[i] = machine_precision();
         return v/1000.0;
     }
-    real log_lik_single(data array[] int S, data array[] int D, data array[] int R, data int nS, data real T, vector w, real alpha, vector pK, real mu0, real sigma0, real C) {
+    real log_lik_single(data array[] int S, data array[] int D, data array[] int R, data int nS, data real T, vector r, real alpha, real mK, real sK, real mu0, real sigma0, real C) {
         real log_lik;
-        vector[nS] v = calculate_v(nS, S, D, to_vector(w), alpha, C);
-        log_lik = tva_pr_log(R, S, D, T, [mu0, sigma0]', pK, v);
+        vector[nS] v = calculate_v(nS, S, D, to_vector(r), alpha, C);
+        log_lik = tva_pr_log(R, S, D, T, [mu0, sigma0]', [mK, sK]', v);
         return log_lik;
     }
 }
@@ -417,14 +430,17 @@ data {
     array[M_C] int map_C;
 }
 transformed data {
+    int max_K;
+    max_K = 6;
     array[N] int nS;
     for(i in 1:N) nS[i] = sum(S[i,]);
     int total_nS = sum(nS);
     int M = M_C;
 }
 parameters {
-    simplex[6] w;
-    simplex[7] pK;
+    simplex[2] r;
+    real<lower=machine_precision()> mK;
+    real<lower=machine_precision()> sK;
     real mu0;
     real<lower=machine_precision()> sigma0;
     real<lower=machine_precision()> alpha;
@@ -446,14 +462,15 @@ model {
     } else {
         b[map_C] ~ normal(0.0,5.0);
     }
-    w ~ lognormal(0, 0.5);
-    pK ~ lognormal(0, 0.5);
+    r[:1]/r[2] ~ lognormal(0, 0.2);
+    mK ~ normal(3.5, 1);
+    sK ~ lognormal(0, 1);
     mu0 ~ normal(20, 15);
     sigma0 ~ gamma(2, 0.2);
     alpha ~ lognormal(-0.4, 0.6);
     // likelihood (only if prior != 0)
     if(target() != negative_infinity()) {
-        for(i in 1:N) target += log_lik_single(S[i], D[i], R[i], nS[i], T[i], to_vector(w), alpha, to_vector(pK), mu0, sigma0, C[i]);
+        for(i in 1:N) target += log_lik_single(S[i], D[i], R[i], nS[i], T[i], to_vector(r), alpha, mK, sK, mu0, sigma0, C[i]);
     }
 }
 ```
@@ -477,47 +494,38 @@ tva_fit_nested <- sampling(tva_model_nested, tva_data_nested)
 
 ``` r
 tva_fit_nested
-#> StanTVA model with 6 free parameter(s), fitted with 4  chains, each with iter=2000; warmup=1000; thin=1
+#> StanTVA model with 7 free parameter(s), fitted with 4  chains, each with iter=2000; warmup=1000; thin=1
 #> 
 #> Model configuration:
 #> formula = list(log(C) ~ 1 + condition)
 #> locations = 6
 #> task = "pr"
-#> regions = list()
+#> regions = list(1:3, 4:6)
 #> C_mode = "equal"
-#> w_mode = "locations"
+#> w_mode = "regions"
 #> t0_mode = "gaussian"
-#> K_mode = "free"
+#> K_mode = "probit"
 #> max_K = 6
 #> allow_guessing = FALSE
 #> parallel = TRUE
 #> save_log_lik = FALSE
-#> sanity_checks = FALSE
+#> sanity_checks = TRUE
 #> debug_neginf_loglik = FALSE
 #> 
 #> Global parameters:
-#>         mean se_mean   sd 2.5%  25%   50%   75% 97.5%   n_eff Rhat
-#> w[1]    0.17    0.00 0.02 0.13 0.15  0.17  0.18  0.20 6389.54    1
-#> w[2]    0.21    0.00 0.02 0.17 0.20  0.21  0.23  0.26 5931.22    1
-#> w[3]    0.13    0.00 0.02 0.11 0.12  0.13  0.14  0.17 6396.66    1
-#> w[4]    0.14    0.00 0.02 0.11 0.12  0.13  0.15  0.17 6375.33    1
-#> w[5]    0.17    0.00 0.02 0.14 0.16  0.17  0.18  0.21 6887.20    1
-#> w[6]    0.18    0.00 0.02 0.14 0.17  0.18  0.19  0.22 7444.45    1
-#> pK[1]   0.10    0.00 0.02 0.06 0.08  0.10  0.11  0.14 6850.11    1
-#> pK[2]   0.10    0.00 0.02 0.06 0.09  0.10  0.11  0.14 6559.53    1
-#> pK[3]   0.21    0.00 0.03 0.15 0.19  0.21  0.23  0.28 5605.04    1
-#> pK[4]   0.27    0.00 0.04 0.20 0.24  0.26  0.29  0.34 6691.55    1
-#> pK[5]   0.11    0.00 0.03 0.07 0.09  0.11  0.13  0.16 5173.85    1
-#> pK[6]   0.12    0.00 0.03 0.07 0.10  0.12  0.14  0.18 5815.02    1
-#> pK[7]   0.10    0.00 0.03 0.05 0.08  0.10  0.11  0.16 4411.66    1
-#> mu0    10.71    0.07 3.90 1.32 8.70 11.25 13.30 16.91 2789.80    1
-#> sigma0  6.27    0.05 3.46 1.03 3.81  5.82  8.22 14.30 4072.46    1
-#> alpha   1.01    0.00 0.28 0.55 0.83  0.98  1.17  1.63 5856.68    1
+#>         mean se_mean   sd  2.5%   25%   50%   75% 97.5%   n_eff Rhat
+#> r[1]    0.48    0.00 0.02  0.43  0.46  0.48  0.49  0.52 3818.53    1
+#> r[2]    0.52    0.00 0.02  0.48  0.51  0.52  0.54  0.57 3818.53    1
+#> mK      3.07    0.00 0.07  2.93  3.03  3.07  3.12  3.21 3170.68    1
+#> sK      1.93    0.00 0.22  1.52  1.78  1.92  2.07  2.37 2928.26    1
+#> mu0    19.25    0.07 3.43 13.00 16.79 19.14 21.55 26.43 2385.18    1
+#> sigma0  7.63    0.07 3.46  1.62  5.17  7.38  9.82 15.26 2554.38    1
+#> alpha   0.64    0.00 0.12  0.43  0.55  0.63  0.71  0.90 3612.55    1
 #> 
 #> Fixed effects:
-#>                  mean se_mean   sd  2.5%  25%   50%  75% 97.5%   n_eff Rhat
-#> C_Intercept      4.60    0.01 0.29  4.06  4.4  4.59 4.78  5.22 2959.86    1
-#> C_conditionhigh -0.03    0.00 0.27 -0.56 -0.2 -0.02 0.15  0.50 4063.37    1
+#>                 mean se_mean   sd  2.5%   25%  50%  75% 97.5%   n_eff Rhat
+#> C_Intercept     4.43    0.01 0.24  4.01  4.26 4.40 4.57  4.98 1907.77    1
+#> C_conditionhigh 0.07    0.00 0.26 -0.44 -0.11 0.06 0.24  0.58 3062.82    1
 ```
 
 ## Hierarchical example
@@ -539,29 +547,33 @@ priors <-
   prior(normal(4,.2),dpar=C,coef=Intercept)+
   prior(normal(0,.07),dpar=alpha)+
   prior(normal(-0.2,.1),dpar=alpha,coef=Intercept)+
-  prior(normal(0,.03),dpar=pK)+
-  prior(normal(0,.1),dpar=pK,coef=Intercept)+
+  prior(normal(3.5,.5),dpar=mK,coef=Intercept)+
+  prior(normal(0,.1),dpar=mK)+
+  prior(normal(-0.5,.5),dpar=sK,coef=Intercept)+
+  prior(normal(0,.1),dpar=sK)+
   prior(normal(0,5),dpar=mu0)+
   prior(normal(30,15),dpar=mu0,coef=Intercept)+
   prior(normal(0,.04),dpar=sigma0)+
   prior(normal(0,.2),dpar=sigma0,coef=Intercept)+
-  prior(normal(0,.05),dpar=w)+
-  prior(normal(0,0.1),dpar=w,coef=Intercept)
+  prior(normal(0,.05),dpar=r)+
+  prior(normal(0,0.1),dpar=r,coef=Intercept)
 
 tva_hierarchical_model <- stantva_model(
   formula = list(
     log(C) ~ 1 + condition + (1 + condition | C_alpha | subject),
-    log(w) ~ 1 + (1 | subject),
-    log(pK) ~ 1 + (1 | subject),
+    log(r) ~ 1 + (1 | subject),
+    log(mK) ~ 1 + (1 | K | subject),
+    log(sK) ~ 1 + (1 | K | subject),
     mu0 ~ 1 + (1 | subject),
     log(sigma0) ~ 1 + (1 | subject),
     log(alpha) ~ 1 + (1 | C_alpha | subject)
   ),
   locations = 6,
   task = "pr",
-  w_mode = "locations",
+  w_mode = "regions",
+  regions = list(1:3, 4:6),
   t0_mode = "gaussian",
-  K_mode = "free",
+  K_mode = "probit",
   priors = priors
 )
 ```
@@ -580,105 +592,6 @@ tva_hierarchical_fit <- sampling(tva_hierarchical_model, tva_hierarchical_subset
 
 ``` r
 tva_hierarchical_fit
-#> StanTVA model with 6 free parameter(s), fitted with 4  chains, each with iter=2000; warmup=1000; thin=1
-#> 
-#> Model configuration:
-#> formula = list(log(C) ~ 1 + condition + (1 + condition | C_alpha | subject), log(alpha) ~ 1 + (1 | C_alpha | subject), log(pK) ~ 1 + (1 | subject), mu0 ~ 1 + (1 | subject), log(sigma0) ~ 1 + (1 | subject), log(w) ~ 1 + (1 | subject))
-#> locations = 6
-#> task = "pr"
-#> regions = list()
-#> C_mode = "equal"
-#> w_mode = "locations"
-#> t0_mode = "gaussian"
-#> K_mode = "free"
-#> max_K = 6
-#> allow_guessing = FALSE
-#> parallel = TRUE
-#> save_log_lik = FALSE
-#> priors = prior(normal(0, 0.07), dpar = C) + prior(normal(4, 0.2), coef = Intercept, dpar = C) + prior(normal(0, 0.07), dpar = alpha) + prior(normal(-0.2, 0.1), coef = Intercept, dpar = alpha) + prior(normal(0, 0.03), dpar = pK) + prior(normal(0, 0.1), coef = Intercept, dpar = pK) + prior(normal(0, 5), dpar = mu0) + prior(normal(30, 15), coef = Intercept, dpar = mu0) + prior(normal(0, 0.04), dpar = sigma0) + prior(normal(0, 0.2), coef = Intercept, dpar = sigma0) + prior(normal(0, 0.05), dpar = w) + prior(normal(0,      0.1), coef = Intercept, dpar = w) + prior(normal(0, 10), class = sd, coef = Intercept, dpar = mu0) + prior(normal(0, 5), class = sd, dpar = mu0)
-#> sanity_checks = TRUE
-#> debug_neginf_loglik = FALSE
-#> 
-#> Fixed effects:
-#>                   mean se_mean   sd  2.5%   25%   50%   75% 97.5%   n_eff Rhat
-#> C_Intercept       4.25    0.00 0.08  4.09  4.19  4.24  4.30  4.41 3634.74    1
-#> C_conditionhigh   0.01    0.00 0.06 -0.10 -0.03  0.01  0.05  0.13 3818.13    1
-#> alpha_Intercept  -0.25    0.00 0.08 -0.42 -0.31 -0.25 -0.20 -0.10 4208.60    1
-#> pK_Intercept[1]  -0.18    0.00 0.08 -0.35 -0.24 -0.18 -0.12 -0.02 3475.77    1
-#> pK_Intercept[2]  -0.08    0.00 0.09 -0.25 -0.14 -0.08 -0.02  0.08 3117.08    1
-#> pK_Intercept[3]   0.21    0.00 0.09  0.03  0.15  0.21  0.27  0.38 2297.50    1
-#> pK_Intercept[4]   0.11    0.00 0.09 -0.06  0.05  0.11  0.17  0.28 5884.16    1
-#> pK_Intercept[5]  -0.03    0.00 0.09 -0.21 -0.08 -0.03  0.03  0.14 4882.48    1
-#> pK_Intercept[6]  -0.02    0.00 0.09 -0.21 -0.09 -0.02  0.04  0.16 6240.98    1
-#> mu0_Intercept    10.87    0.09 3.01  5.09  8.87 10.90 12.80 16.78 1199.21    1
-#> sigma0_Intercept  0.02    0.00 0.20 -0.37 -0.10  0.02  0.16  0.40 4652.04    1
-#> w_Intercept[1]   -0.06    0.00 0.06 -0.19 -0.11 -0.06 -0.02  0.07 4082.87    1
-#> w_Intercept[2]    0.04    0.00 0.06 -0.08 -0.01  0.04  0.08  0.16 3846.57    1
-#> w_Intercept[3]    0.01    0.00 0.06 -0.11 -0.03  0.01  0.06  0.14 4923.33    1
-#> w_Intercept[4]    0.06    0.00 0.07 -0.08  0.02  0.06  0.10  0.18 1321.66    1
-#> w_Intercept[5]    0.03    0.00 0.06 -0.08 -0.01  0.03  0.08  0.16 4374.83    1
-#> 
-#> Hyperparameters on random effects (subject level, N = 10):
-#>                                                       mean se_mean   sd  2.5%
-#> sd(C_subject_Intercept)                               0.07    0.00 0.05  0.00
-#> sd(C_subject_conditionhigh)                           0.04    0.00 0.03  0.00
-#> sd(alpha_subject_Intercept)                           0.08    0.00 0.06  0.00
-#> sd(pK_subject_Intercept[1])                           0.13    0.01 0.09  0.01
-#> sd(pK_subject_Intercept[2])                           0.08    0.01 0.06  0.00
-#> sd(pK_subject_Intercept[3])                           0.13    0.01 0.09  0.01
-#> sd(pK_subject_Intercept[4])                           0.10    0.00 0.07  0.01
-#> sd(pK_subject_Intercept[5])                           0.08    0.00 0.06  0.01
-#> sd(pK_subject_Intercept[6])                           0.08    0.00 0.06  0.00
-#> sd(mu0_subject_Intercept)                             8.52    0.06 2.64  4.50
-#> sd(sigma0_subject_Intercept)                          0.08    0.01 0.06  0.00
-#> sd(w_subject_Intercept[1])                            0.08    0.00 0.06  0.01
-#> sd(w_subject_Intercept[2])                            0.12    0.00 0.07  0.01
-#> sd(w_subject_Intercept[3])                            0.08    0.00 0.05  0.01
-#> sd(w_subject_Intercept[4])                            0.12    0.00 0.07  0.01
-#> sd(w_subject_Intercept[5])                            0.08    0.00 0.05  0.01
-#> cor(C_subject_Intercept,C_subject_conditionhigh)     -0.01    0.01 0.34 -0.65
-#> cor(C_subject_Intercept,alpha_subject_Intercept)      0.00    0.01 0.35 -0.64
-#> cor(C_subject_conditionhigh,alpha_subject_Intercept)  0.00    0.01 0.35 -0.67
-#>                                                        25%   50%   75% 97.5%
-#> sd(C_subject_Intercept)                               0.03  0.07  0.11  0.20
-#> sd(C_subject_conditionhigh)                           0.02  0.03  0.06  0.11
-#> sd(alpha_subject_Intercept)                           0.03  0.07  0.11  0.22
-#> sd(pK_subject_Intercept[1])                           0.06  0.12  0.19  0.31
-#> sd(pK_subject_Intercept[2])                           0.03  0.06  0.11  0.23
-#> sd(pK_subject_Intercept[3])                           0.06  0.12  0.20  0.33
-#> sd(pK_subject_Intercept[4])                           0.05  0.09  0.14  0.25
-#> sd(pK_subject_Intercept[5])                           0.03  0.06  0.11  0.23
-#> sd(pK_subject_Intercept[6])                           0.04  0.07  0.12  0.21
-#> sd(mu0_subject_Intercept)                             6.63  8.13 10.03 14.47
-#> sd(sigma0_subject_Intercept)                          0.03  0.07  0.12  0.22
-#> sd(w_subject_Intercept[1])                            0.03  0.07  0.12  0.21
-#> sd(w_subject_Intercept[2])                            0.06  0.11  0.16  0.26
-#> sd(w_subject_Intercept[3])                            0.04  0.07  0.11  0.19
-#> sd(w_subject_Intercept[4])                            0.06  0.12  0.17  0.26
-#> sd(w_subject_Intercept[5])                            0.04  0.07  0.11  0.20
-#> cor(C_subject_Intercept,C_subject_conditionhigh)     -0.26 -0.01  0.25  0.65
-#> cor(C_subject_Intercept,alpha_subject_Intercept)     -0.25 -0.01  0.25  0.67
-#> cor(C_subject_conditionhigh,alpha_subject_Intercept) -0.26  0.00  0.25  0.66
-#>                                                        n_eff Rhat
-#> sd(C_subject_Intercept)                               243.44 1.02
-#> sd(C_subject_conditionhigh)                           217.85 1.03
-#> sd(alpha_subject_Intercept)                           212.46 1.02
-#> sd(pK_subject_Intercept[1])                           135.83 1.03
-#> sd(pK_subject_Intercept[2])                           114.19 1.02
-#> sd(pK_subject_Intercept[3])                           167.43 1.03
-#> sd(pK_subject_Intercept[4])                           204.51 1.01
-#> sd(pK_subject_Intercept[5])                           180.01 1.00
-#> sd(pK_subject_Intercept[6])                           221.09 1.01
-#> sd(mu0_subject_Intercept)                            2242.84 1.00
-#> sd(sigma0_subject_Intercept)                          135.26 1.03
-#> sd(w_subject_Intercept[1])                            174.37 1.01
-#> sd(w_subject_Intercept[2])                            240.97 1.01
-#> sd(w_subject_Intercept[3])                            249.55 1.01
-#> sd(w_subject_Intercept[4])                            204.04 1.01
-#> sd(w_subject_Intercept[5])                            300.78 1.01
-#> cor(C_subject_Intercept,C_subject_conditionhigh)     3201.99 1.00
-#> cor(C_subject_Intercept,alpha_subject_Intercept)     1814.57 1.00
-#> cor(C_subject_conditionhigh,alpha_subject_Intercept) 3113.59 1.00
 ```
 
 ## Parallelization
