@@ -12,9 +12,8 @@ stantva_code(
   C_mode = c("equal", "locations", "regions"),
   w_mode = c("locations", "regions", "equal"),
   t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"),
-  K_mode = c("bernoulli", "free", "binomial", "betabinomial"),
+  K_mode = c("bernoulli", "free", "binomial", "betabinomial", "hypergeometric", "probit"),
   max_K = locations,
-  allow_guessing = FALSE,
   parallel = isTRUE(rstan_options("threads_per_chain") > 1L),
   save_log_lik = FALSE,
   priors = NULL,
@@ -31,17 +30,15 @@ stantva_code(
 
 \item{regions}{An optional list of groups of display locations (regions).}
 
-\item{C_mode}{The mode/family for the $C$ parameter.}
+\item{C_mode}{The mode/family for the \eqn{C}{C} parameter.}
 
-\item{w_mode}{The mode/family for the $w$ parameter.}
+\item{w_mode}{The mode/family for the \eqn{w}{w} parameter.}
 
-\item{t0_mode}{The mode/family for the $t_0$ parameter.}
+\item{t0_mode}{The mode/family for the \eqn{t_0}{t0} parameter.}
 
-\item{K_mode}{The mode for the $K$ parameter.}
+\item{K_mode}{The mode for the \eqn{K}{K} parameter.}
 
-\item{max_K}{The upper bound of $K$.}
-
-\item{allow_guessing}{(logical) Whether to allow guessing.}
+\item{max_K}{The upper bound of \eqn{K}{K}.}
 
 \item{parallel}{(logical) Whether to use parallel chains.}
 

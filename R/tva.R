@@ -364,11 +364,11 @@ parse_formula <- function(f) {
 #' @param locations The number of display locations (items).
 #' @param task The task. Currently implemented: \code{wr} (whole report) and \code{pr} (partial report)
 #' @param regions An optional list of groups of display locations (regions).
-#' @param C_mode The mode/family for the $C$ parameter.
-#' @param w_mode The mode/family for the $w$ parameter.
-#' @param t0_mode The mode/family for the $t_0$ parameter.
-#' @param K_mode The mode for the $K$ parameter.
-#' @param max_K The upper bound of $K$.
+#' @param C_mode The mode/family for the \eqn{C}{C} parameter.
+#' @param w_mode The mode/family for the \eqn{w}{w} parameter.
+#' @param t0_mode The mode/family for the \eqn{t_0}{t0} parameter.
+#' @param K_mode The mode for the \eqn{K}{K} parameter.
+#' @param max_K The upper bound of \eqn{K}{K}.
 #' @param parallel (logical) Whether to use parallel chains.
 #' @param save_log_lik (logical) Whether to save the log likelihood (needed for likelihood-based model comparison such as loo).
 #' @param priors The priors.
