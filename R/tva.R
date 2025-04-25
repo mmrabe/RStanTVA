@@ -682,7 +682,7 @@ stantva_code <- function(
     K_args <- "[aK, bK]'"
   } else if(K_mode == "probit") {
     add_code("functions", includeFile("probitK.stan"))
-    add_param(name = "mK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~normal(3.5,0.5))
+    add_param(name = "mK", class = c("phi", "K"), type = "real", ctype="real", rtype="real", dim = 1, prior = ~normal(3.5,0.5))
     add_param(name = "sK", class = c("phi", "K"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", dim = 1, prior = ~lognormal(-0.5,0.25))
     K_args <- "[mK, sK]'"
   } else if(K_mode == "binomial") {
