@@ -233,16 +233,13 @@ tva_hierarchical_subset <- tva_recovery %>% filter(subject <= 10 & trial <= 100)
 
 ```{r hierarchical-fit, eval = FALSE}
 tva_hierarchical_fit <- sampling(tva_hierarchical_model, tva_hierarchical_subset)
-```
-
-```{r load-hierarchical-fit, include=FALSE, eval = FALSE}
-tva_hierarchical_fit <- read_stantva_fit(sprintf("man/cache/fit-small-hierarchical-chain%d.rds", 1:4))
-```
-
-
-```{r show-hierarchical-fit, eval = FALSE}
 tva_hierarchical_fit
 ```
+
+```{r load-hierarchical-fit, echo=FALSE, message=FALSE}
+read_stantva_fit(sprintf("man/cache/fit-hierarchical-small-chain%d.rds", 1:4))
+```
+
 
 
 
