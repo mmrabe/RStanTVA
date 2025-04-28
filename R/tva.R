@@ -1708,7 +1708,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
         if(i > par_df) return(matrix(1, (object@sim$iter-object@sim$warmup)*object@sim$chains, newdata$N))
         y <- tcrossprod(newdata$X[,m,drop=FALSE], p$b[,m,drop=FALSE])
         for(k in seq_len(nrow(rfs))) {
-          mrf <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i,"_",rfs$group[k]) else paste0("map_",parname,"_",rfs$group[k])]]
+          mrf <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i,"_",rfs$group[k],"_",i) else paste0("map_",parname,"_",rfs$group[k])]]
           for(j in seq_len(newdata[[paste0("N_",rfs$factor_txt[k])]])) {
             J <- newdata[[rfs$factor_txt[k]]] == j
             #print(which(J))
@@ -1726,7 +1726,10 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
         t(fx$inverse_link[[which_formula]](y))
       }, matrix(NA_real_, (object@sim$iter-object@sim$warmup)*object@sim$chains, newdata$N))
       if(par_dim > 1L && par_dim > par_df) {
-        rs <- do.call(cbind, apply(r, 2, rowSums, simplify = FALSE))
+        rs <- as.matrix(r[,,1])
+        for(i in seq_len(par_dim)[-1]) {
+          rs <- rs + r[,,i]
+        }
         for(i in seq_len(par_dim)) {
           r[,,i] <- r[,,i] / rs
         }
