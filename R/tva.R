@@ -837,8 +837,8 @@ stantva_code <- function(
   )
 
   # default parameter-unspecific priors
-  default_priors <- prior("normal(0.0,0.05)", "sd") +
-    prior("normal(0.0,0.1)", "sd", coef = "Intercept") +
+  default_priors <- prior("gamma(2.0,8.0)", "sd") +
+    prior("gamma(2.0,5.0))", "sd", coef = "Intercept") +
     prior("lkj_corr(0.8)", "cor") +
     prior("normal(0.0,5.0)") +
     prior("normal(0.0,10.0)", coef = "Intercept")
