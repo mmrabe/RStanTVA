@@ -33,10 +33,19 @@ remotes::install_github("mmrabe/RStanTVA")
 
 ## Loading the library
 
+After installing, RStanTVA can be loaded like any other R package. For
+data wrangling, you may also find it helpful to load dplyr and tidyr (or
+the complete tidyverse), which are also used in this readme.
+
 ``` r
 library(RStanTVA)
 library(tidyverse)
 ```
+
+Loading RStanTVA will also load rstan and its dependencies, which may
+produce additional messages in the console. Regarding rstan’s note on
+multi-threading, please see the Parallelization section at the end of
+this readme.
 
 ## Example data set
 
