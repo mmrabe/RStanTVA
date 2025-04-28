@@ -716,7 +716,7 @@ stantva_code <- function(
   } else if(t0_mode == "gaussian") {
     add_code("functions", includeFile("gaussiant0.stan"))
     add_param(name = "mu0", class = c("phi","t0"), type = "real", ctype="real", rtype="real", prior = ~normal(20, 15))
-    add_param(name = "sigma0", class = c("phi","t0"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", prior = ~lognormal(2,.6))
+    add_param(name = "sigma0", class = c("phi","t0"), type = "real<lower=machine_precision()>", ctype="real", rtype="real", prior = ~lognormal(1.7,0.6))
     t0_args <- "[mu0, sigma0]'"
   } else if(t0_mode == "exponential") {
     # TODO implement default priors!
