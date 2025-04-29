@@ -160,7 +160,6 @@ If we wanted to look at the generated Stan code, this would be it:
  *  - t0_mode = gaussian
  *  - K_mode = probit
  *  - max_K = 6
- *  - allow_guessing = FALSE
  *  - parallel = FALSE
  *  - save_log_lik = FALSE
  *  - priors = NULL
@@ -217,19 +216,19 @@ transformed data {
 parameters {
     real<lower=machine_precision()> C;
     simplex[2] r;
-    real<lower=machine_precision()> mK;
+    real mK;
     real<lower=machine_precision()> sK;
     real mu0;
     real<lower=machine_precision()> sigma0;
     real<lower=machine_precision()> alpha;
 }
 model {
-    C ~ gamma(3.5, 0.035);
+    C ~ lognormal(4.5, 0.6);
     r[:1]/r[2] ~ lognormal(0, 0.2);
-    mK ~ normal(3.5, 1);
-    sK ~ lognormal(0, 1);
+    mK ~ normal(3.5, 0.5);
+    sK ~ lognormal(-0.5, 0.25);
     mu0 ~ normal(20, 15);
-    sigma0 ~ gamma(2, 0.2);
+    sigma0 ~ lognormal(2, 0.6);
     alpha ~ lognormal(-0.4, 0.6);
     // likelihood (only if prior != 0)
     if(target() != negative_infinity()) {
@@ -256,8 +255,8 @@ estimation (MLE):
 ``` r
 tva_fit_mle <- optimizing(tva_model, tva_data)
 tva_fit_mle$par[c("C","alpha","mu0","sigma0","mK","sK")]
-#>           C       alpha         mu0      sigma0          mK          sK 
-#> 103.6244753   0.6122754  22.7355311   9.4198683   3.0178574   2.1132272
+#>          C      alpha        mu0     sigma0         mK         sK 
+#> 95.8549318  0.6201870 21.4276180  7.7779863  3.0318789  0.4844716
 ```
 
 … or using Bayesian HMC sampling:
@@ -279,7 +278,6 @@ tva_fit
 #> t0_mode = "gaussian"
 #> K_mode = "probit"
 #> max_K = 6
-#> allow_guessing = FALSE
 #> parallel = TRUE
 #> save_log_lik = FALSE
 #> sanity_checks = TRUE
@@ -287,19 +285,15 @@ tva_fit
 #> Warning: Unknown or uninitialised column: `param`.
 #> 
 #> Global parameters:
-#>         mean se_mean    sd 2.5%   25%   50%    75%  97.5% n_eff  Rhat
-#> C      84.52   35.28 56.17 0.15 32.78 95.51 121.83 182.97  2.53  2.12
-#> r[1]    0.44    0.06  0.08 0.31  0.37  0.48   0.50   0.54  2.16  3.51
-#> r[2]    0.56    0.06  0.08 0.46  0.50  0.52   0.63   0.69  2.16  3.51
-#> mK      3.04    0.02  0.08 2.87  2.99  3.06   3.08   3.18 20.33  1.07
-#> sK      2.34    0.22  0.44 1.57  1.98  2.30   2.86   2.95  3.93  1.41
-#> mu0    17.22    7.04 10.57 0.19  6.18 20.96  25.02  30.70  2.26  2.88
-#> sigma0  9.80    1.73  4.28 4.03  5.79  9.24  12.71  19.41  6.10  1.22
-#> alpha   1.77    1.35  1.92 0.41  0.59  0.72   2.34   5.08  2.01 14.70
-#> Warning in .local(x, ...): A parameter has not converged but may still be
-#> acceptable (1.05 ≤ Rhat < 1.1): mK
-#> Warning in .local(x, ...): 7 parameters have not converged (Rhat ≥ 1.1): C,
-#> r[1], r[2], sK, mu0, sigma0, alpha
+#>          mean se_mean    sd  2.5%   25%    50%    75%  97.5%   n_eff Rhat
+#> C      111.38    0.85 36.19 63.00 86.23 104.45 129.01 200.13 1814.83    1
+#> r[1]     0.49    0.00  0.03  0.43  0.47   0.49   0.51   0.55 4843.93    1
+#> r[2]     0.51    0.00  0.03  0.45  0.49   0.51   0.53   0.57 4843.93    1
+#> mK       3.04    0.00  0.09  2.86  2.97   3.04   3.10   3.21 3038.93    1
+#> sK       0.51    0.00  0.07  0.38  0.46   0.50   0.55   0.65 4404.91    1
+#> mu0     22.49    0.10  4.62 13.46 19.44  22.50  25.58  31.40 2036.00    1
+#> sigma0  10.19    0.07  3.85  3.73  7.43   9.91  12.45  18.90 3483.68    1
+#> alpha    0.67    0.00  0.17  0.39  0.55   0.65   0.77   1.05 4751.24    1
 ```
 
 ## Nested example

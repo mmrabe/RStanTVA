@@ -125,7 +125,6 @@ tva_fit <- sampling(tva_model, tva_data)
 tva_fit
 ```
 
-
 ## Nested example
 
 Above, we have fitted the model only to a subset of trials in one experimental condition. What is novel in `RStanTVA` is the possibility to specify all kinds of hierarchical and nested parameter structures. At first, we are now creating a subset of *all* trials of subject 20, which includes trials in both conditions `high` and `low`:
