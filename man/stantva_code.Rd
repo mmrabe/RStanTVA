@@ -14,6 +14,7 @@ stantva_code(
   t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"),
   K_mode = c("bernoulli", "free", "binomial", "betabinomial", "hypergeometric", "probit"),
   max_K = locations,
+  fixed = NULL,
   parallel = isTRUE(rstan_options("threads_per_chain") > 1L),
   save_log_lik = FALSE,
   priors = NULL,
@@ -39,6 +40,8 @@ stantva_code(
 \item{K_mode}{The mode for the \eqn{K}{K} parameter.}
 
 \item{max_K}{The upper bound of \eqn{K}{K}.}
+
+\item{fixed}{Named vector or list of parameters that are not to be sampled/fitted but fixed to their respective values.}
 
 \item{parallel}{(logical) Whether to use parallel chains.}
 

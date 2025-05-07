@@ -369,6 +369,7 @@ parse_formula <- function(f) {
 #' @param t0_mode The mode/family for the \eqn{t_0}{t0} parameter.
 #' @param K_mode The mode for the \eqn{K}{K} parameter.
 #' @param max_K The upper bound of \eqn{K}{K}.
+#' @param fixed Named vector or list of parameters that are not to be sampled/fitted but fixed to their respective values.
 #' @param parallel (logical) Whether to use parallel chains.
 #' @param save_log_lik (logical) Whether to save the log likelihood (needed for likelihood-based model comparison such as loo).
 #' @param priors The priors.
@@ -389,6 +390,7 @@ stantva_code <- function(
     t0_mode = c("constant", "gaussian", "exponential", "shifted_exponential"),
     K_mode = c("bernoulli", "free", "binomial", "betabinomial", "hypergeometric", "probit"),
     max_K = locations,
+    fixed = NULL,
     parallel = isTRUE(rstan_options("threads_per_chain") > 1L),
     save_log_lik = FALSE,
     priors = NULL,
@@ -466,6 +468,16 @@ stantva_code <- function(
         prior_fixed_intercept = parameters[[name]]$prior
       )
       parameters[[name]]$hierarchical <<- hc
+    } else if(name %in% names(fixed)) {
+      parameters[[name]] <<- list(...)
+      val <- if(grepl("matrix", parameters[[name]]$type)) {
+        paste0("[",paste(vapply(seq_len(nrow(fixed[[name]])), function(i) paste0("[",paste(sprintf("%g", fixed[[name]][i,]), collapse = ", "),"]"), character(1)), collapse=", "),"]")
+      } else if(grepl("^(simplex|vector)", parameters[[name]]$type)) {
+        paste0("[",paste(sprintf("%g", fixed[[name]]), collapse = ", "),"]'")
+      } else {
+        sprintf("%g", fixed[[name]])
+      }
+      add_code("transformed parameters", sprintf("%s %s = %s;", parameters[[name]]$type, name, val))
     } else {
       parameters[[name]] <<- list(...)
       add_code(if(isTRUE(parameters[[name]]$transformed)) "transformed parameters" else "parameters", sprintf("%s %s;", parameters[[name]]$type, name))
@@ -1092,6 +1104,8 @@ stantva_code <- function(
             sprintf("// no prior for %s fixed slopes", name)
           )
         }
+      } else if(name %in% names(fixed)) {
+        sprintf("// prior ignored for fixed %s", name)
       } else {
         p <- get_prior(priors, "global", dpar=name)
         if(is.null(p)) sprintf("// no prior for global %s", name) else if(grepl("^simplex\\b", parameters[[name]]$type)) sprintf("%1$s[:%2$d]/%1$s[%3$d] ~ %4$s;", name, parameters[[name]]$dim-1, parameters[[name]]$dim, p) else sprintf("%s ~ %s;", name, p)
