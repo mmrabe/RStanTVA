@@ -69,7 +69,7 @@ data("tva_recovery_true_params")
 
 `RStanTVA` comes with a CombiTVA data set `tva_recovery` of `r max(tva_recovery$subject)` simulated subjects with `r max(tva_recovery$trial)` trials each. For each subject and trial, the true underlying parameters are known exactly, which makes it very useful for demonstrating the functionality of this package:
 
-Of the `r max(tva_recovery$trial)` trials, half were carried out under the `high` condition, and the other half under the `low` condition. Imagine that those are maybe different levels of luminance, some sort of cognitive load or so. The concrete manipulation is not really relevant but we *do* know that on average, `r sprintf("$C_\\mathrm{high}=%.1f>C_\\mathrm{low}=%.1f$",exp(tva_recovery_true_params$b["C_Intercept"]+tva_recovery_true_params$b["C_conditionhigh"]),exp(tva_recovery_true_params$b["C_Intercept"]))`, and that across subjects, `r sprintf("$\\mathrm{cor}\\left(C,\\alpha\\right)=%+.1f$",tva_recovery_true_params$r_subject["C_Intercept","alpha_Intercept"])`.
+Of the `r max(tva_recovery$trial)` trials, half were carried out under the `high` condition, and the other half under the `low` condition. Imagine that those are maybe different levels of luminance, some sort of cognitive load or so. The concrete manipulation is not really relevant but we *do* know that on average, `r sprintf("$C_\\mathrm{high}=%.1f>C_\\mathrm{low}=%.1f$",exp(tva_recovery_true_params$b["C_Intercept"]+tva_recovery_true_params$b["C_conditionhigh"]),exp(tva_recovery_true_params$b["C_Intercept"]))`, and that across subjects, `r sprintf("$\\mathrm{cor}\\left(\\log C,\\log\\alpha\\right)=%+.1f$",tva_recovery_true_params$r_subject["C_Intercept","alpha_Intercept"])`.
 
 
 ## Simple model

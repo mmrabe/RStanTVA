@@ -87,7 +87,7 @@ the other half under the `low` condition. Imagine that those are maybe
 different levels of luminance, some sort of cognitive load or so. The
 concrete manipulation is not really relevant but we *do* know that on
 average, $C_\mathrm{high}=100.0>C_\mathrm{low}=80.0$, and that across
-subjects, $\mathrm{cor}\left(C,\alpha\right)=-0.3$.
+subjects, $\mathrm{cor}\left(\log C,\log\alpha\right)=-0.3$.
 
 ## Simple model
 
