@@ -1794,10 +1794,9 @@ setMethod("fitted", "stantvafit", fitted.stantvafit)
 #' \donttest{tva_report(tva_recovery)}
 #' @export
 tva_report <- function(data) {
-  data %>% transmute(
-    condition = .data$condition,
-    exposure = .data$T,
+  data %>% mutate(
     score = as.integer(if(is.null(.data$D)) rowSums(.data$R & .data$S) else rowSums(.data$R & .data$S & !.data$D)),
+    error_rate = rowMeans(.data$S & (!.data$R & !.data$D | .data$D & .data$R)),
     n_items = as.integer(rowSums(.data$S == 1L)),
     n_distractors = if(is.null(.data$D)) integer(n()) else as.integer(rowSums(.data$D))
   ) %>% mutate(n_targets = .data$n_items - .data$n_distractors)
