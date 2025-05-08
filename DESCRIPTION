@@ -10,7 +10,7 @@ License: GPL (>= 3)
 Encoding: UTF-8
 BugReports: https://github.com/mmrabe/RStanTVA/issues
 URL: https://github.com/mmrabe/RStanTVA
-Date: 2025-03-25
+Date: 2025-05-08
 Depends:
     rstan,
     R (>= 3.6)
