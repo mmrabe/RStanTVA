@@ -563,13 +563,13 @@ priors <-
 
 tva_hierarchical_model <- stantva_model(
   formula = list(
-    log(C) ~ 1 + condition + (1 + condition | C_alpha | subject),
+    log(C) ~ 1 + condition + (1 + condition | subject),
     log(r) ~ 1 + (1 | subject),
-    log(mK) ~ 1 + (1 | K | subject),
-    log(sK) ~ 1 + (1 | K | subject),
+    mK ~ 1 + (1 | subject),
+    log(sK) ~ 1 + (1 | subject),
     mu0 ~ 1 + (1 | subject),
     log(sigma0) ~ 1 + (1 | subject),
-    log(alpha) ~ 1 + (1 | C_alpha | subject)
+    log(alpha) ~ 1 + (1 | subject)
   ),
   locations = 6,
   task = "pr",
