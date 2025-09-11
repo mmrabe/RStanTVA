@@ -1,4 +1,4 @@
-#'@importFrom rstan extract stan_model sampling optimizing gqs sflist2stanfit rstan_options read_stan_csv
+#'@importFrom rstan extract stan_model sampling optimizing gqs sflist2stanfit rstan_options read_stan_csv expose_stan_functions get_stream get_rng unconstrain_pars log_prob grad_log_prob stanc
 #'@importFrom dplyr summarize mutate group_by %>% across if_else select bind_cols bind_rows rename last filter transmute n
 #'@importFrom tidyr pivot_longer pivot_wider crossing
 #'@importFrom readr read_table write_tsv
@@ -10,8 +10,11 @@
 #'@importFrom lme4 findbars subbars fixef ranef nobars
 #'@importFrom brms prior set_prior
 #'@importFrom rlang .data .env
+#'@importFrom Rcpp sourceCpp registerPlugin
 #'
 
+
+add_rng <- function(txt,pre=NULL,post=NULL) gsub("^\\s*([^(]+)\\((.*)\\)[\\s;]*$", paste0("\\1_rng(",pre,"\\2",post,")"), txt, perl = TRUE)
 
 nolhs <- function(f) {
   stopifnot(inherits(f, "formula") || (is.call(f) && f[[1]] == "~"))
@@ -414,7 +417,7 @@ stantva_code <- function(
   for(x in formalArgs(sys.function())) {
     if(x %in% c("data","type")) next
     val <- get(x)
-    if(x == "priors") val <- deparse_prior(val)
+    if(x == "priors" && !isFALSE(val)) val <- deparse_prior(val)
     call_args[x] <- if(is.numeric(val) || is.character(val) || is.logical(val)) as.character(val) else deparse1(val)
     call_args_list[[x]] <- val
   }
@@ -860,7 +863,15 @@ stantva_code <- function(
     if(!is.null(parameters[[name]]$prior)) default_priors <- default_priors + set_prior(deparse1(rhs(parameters[[name]]$prior)), class = "global", dpar = name)
   }
 
-  priors <- default_priors + priors
+  priors <- if(isFALSE(priors)) NULL else default_priors + priors
+
+
+  eval_prior <- c()
+  b_prior <- c()
+  b_prior_args <- c()
+  global_prior <- c()
+  sd_prior <- list()
+  sd_prior_args <- list()
 
   # hierarchical stuff
 
@@ -977,64 +988,123 @@ stantva_code <- function(
       "transformed data",
       sprintf("vector[M_%1$s] mu_w_%1$s = rep_vector(0.0, M_%1$s);", all_random_params$group)
     )
-    add_code(
-      "model",
-      unlist(lapply(seq_len(nrow(all_random_effects)), function(i) {
-        prior_slope <- get_prior(priors, "sd", group = all_random_effects$group[i], dpar = all_random_effects$param[i])
-        prior_intercept <- get_prior(priors, "sd", group = all_random_effects$group[i], dpar = all_random_effects$param[i], coef = "Intercept")
-        name <- all_random_effects$param[i]
-        gr <- all_random_effects$group[i]
-        index <- if(is.null(all_random_effects$index)) 1L else all_random_effects$index[i]
-        if(!is.null(prior_intercept) && !is.null(prior_slope)) {
-          if(prior_intercept == prior_slope) {
+
+
+    for(i in seq_len(nrow(all_random_effects))) {
+      prior_slope <- get_prior(priors, "sd", group = all_random_effects$group[i], dpar = all_random_effects$param[i])
+      prior_intercept <- get_prior(priors, "sd", group = all_random_effects$group[i], dpar = all_random_effects$param[i], coef = "Intercept")
+      name <- all_random_effects$param[i]
+      gr <- all_random_effects$group[i]
+      sd_prior_args[[gr]] <- c(
+        sd_prior_args[[gr]],
+        sprintf("int int_%1$s_%2$s", name, gr),
+        sprintf("int M_%1$s_%2$s", name, gr),
+        if(parameters[[name]]$hierarchical$dim == 1L) sprintf("array[] int map_%1$s_%2$s", name, gr) else sprintf("array[] int map_%1$s_%3$d_%2$s", name, gr, seq_len(parameters[[name]]$hierarchical$fdim))
+      )
+      index <- if(is.null(all_random_effects$index)) 1L else all_random_effects$index[i]
+      if(!is.null(prior_intercept) && !is.null(prior_slope)) {
+        if(prior_intercept == prior_slope) {
+          eval_prior <- c(
+            eval_prior,
             sprintf("%s ~ %s;", if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s]", name, gr, seq_len(parameters[[name]]$hierarchical$fdim)), prior_intercept)
-          } else {
-            c(
-              sprintf("if(int_%1$s_%2$s) {", name, gr),
-              sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[:(int_%1$s_%2$s-1)]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[:(int_%1$s_%2$s-1)]]", name, gr, index)),
-              sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[(int_%1$s_%2$s+1):]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[(int_%1$s_%2$s+1):]]", name, gr, index)),
-              sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s]]", name, gr, index)),
-              "} else {",
-              sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s]", name, gr, index)),
-              "}"
-            )
-          }
-        } else if(!is.null(prior_intercept)) {
-          c(
-            sprintf("// no prior for %s random slopes (group: %s)", name, gr),
-            sprintf("if(int_%1$s_%2$s) {", name, gr),
-            sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s]]", name, gr, index)),
-            "}"
           )
-        } else if(!is.null(prior_slope)) {
-          c(
-            sprintf("// no prior for %s random intercepts (group: %s)", name, gr),
+          sd_prior[[gr]] <- c(
+            sd_prior[[gr]],
+            sprintf("%s = %s;", if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s_%2$s) s_%2$s[i]", name, gr) else sprintf("for(i in map_%1$s_%3$d_%2$s) s_%2$s[i]", name, gr, seq_len(parameters[[name]]$hierarchical$fdim)), add_rng(prior_intercept))
+          )
+        } else {
+          eval_prior <- c(
+            eval_prior,
             sprintf("if(int_%1$s_%2$s) {", name, gr),
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[:(int_%1$s_%2$s-1)]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[:(int_%1$s_%2$s-1)]]", name, gr, index)),
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[(int_%1$s_%2$s+1):]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[(int_%1$s_%2$s+1):]]", name, gr, index)),
+            sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s]]", name, gr, index)),
             "} else {",
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s]", name, gr, index)),
             "}"
           )
-        } else {
-          c(
-            sprintf("// no prior for %s random intercepts (group: %s)", name, gr),
-            sprintf("// no prior for %s random slopes (group: %s)", name, gr)
+          sd_prior[[gr]] <- c(
+            sd_prior[[gr]],
+            sprintf("if(int_%1$s_%2$s) {", name, gr),
+            sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s_%2$s[:(int_%1$s_%2$s-1)]) s_%2$s[i]", name, gr) else sprintf("for(i in map_%1$s_%3$d_%2$s[:(int_%1$s_%2$s-1)]) s_%2$s[i]", name, gr, index)),
+            sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s_%2$s[(int_%1$s_%2$s+1):]) s_%2$s[i]", name, gr) else sprintf("for(i in map_%1$s_%3$d_%2$s[(int_%1$s_%2$s+1):]) s_%2$s[i]", name, gr, index)),
+            sprintf("\t%2$s = %1$s;", add_rng(prior_intercept), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s]]", name, gr, index)),
+            "} else {",
+            sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s_%2$s) s_%2$s[i]", name, gr) else sprintf("for(i in map_%1$s_%3$d_%2$s) s_%2$s[i]", name, gr, index)),
+            "}"
           )
         }
-      })),
-      unlist(lapply(seq_len(nrow(all_random_params)), function(i) {
-        p_r <- get_prior(priors, "cor", group = all_random_params$group[i])
-        c(
-          sprintf("if(M_%s > 1) {", all_random_params$group[i]),
-          if(is.null(p_r)) sprintf("\t// no prior for %s random effects correlations", all_random_params$group[i]) else  sprintf("\tr_%1$s ~ %2$s;", all_random_params$group[i], p_r),
-          sprintf("\tw_%1$s ~ multi_normal(mu_w_%1$s, quad_form_diag(r_%1$s, s_%1$s));", all_random_params$group[i]),
-          "} else {",
-          sprintf("\tw_%1$s[,1] ~ normal(0.0, s_%1$s[1]);", all_random_params$group[i]),
+      } else if(!is.null(prior_intercept)) {
+        eval_prior <- c(
+          eval_prior,
+          sprintf("// no prior for %s random slopes (group: %s)", name, gr),
+          sprintf("if(int_%1$s_%2$s) {", name, gr),
+          sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s]]", name, gr, index)),
           "}"
         )
-      }))
-    )
+        sd_prior[[gr]] <- c(
+          sd_prior[[gr]],
+          sprintf("// no prior for %s random slopes (group: %s)", name, gr),
+          sprintf("if(int_%1$s_%2$s) {", name, gr),
+          sprintf("\t%2$s = %1$s;", add_rng(prior_intercept), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s]]", name, gr, index)),
+          "}"
+        )
+      } else if(!is.null(prior_slope)) {
+        eval_prior <- c(
+          eval_prior,
+          sprintf("// no prior for %s random intercepts (group: %s)", name, gr),
+          sprintf("if(int_%1$s_%2$s) {", name, gr),
+          sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[:(int_%1$s_%2$s-1)]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[:(int_%1$s_%2$s-1)]]", name, gr, index)),
+          sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[(int_%1$s_%2$s+1):]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[(int_%1$s_%2$s+1):]]", name, gr, index)),
+          "} else {",
+          sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s]", name, gr, index)),
+          "}"
+        )
+        sd_prior[[gr]] <- c(
+          sd_prior[[gr]],
+          sprintf("// no prior for %s random intercepts (group: %s)", name, gr),
+          sprintf("if(int_%1$s_%2$s) {", name, gr),
+          sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s_%2$s[:(int_%1$s_%2$s-1)]) s_%2$s[i]", name, gr) else sprintf("for(i in map_%1$s_%3$d_%2$s[:(int_%1$s_%2$s-1)]) s_%2$s[i]", name, gr, index)),
+          sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s_%2$s[(int_%1$s_%2$s+1):]) s_%2$s[i]", name, gr) else sprintf("for(i in map_%1$s_%3$d_%2$s[(int_%1$s_%2$s+1):]) s_%2$s[i]", name, gr, index)),
+          "} else {",
+          sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s_%2$s) s_%2$s[i]", name, gr) else sprintf("for(i in map_%1$s_%3$d_%2$s) s_%2$s[i]", name, gr, index)),
+          "}"
+        )
+      } else {
+        eval_prior <- c(
+          eval_prior,
+          sprintf("// no prior for %s random intercepts (group: %s)", name, gr),
+          sprintf("// no prior for %s random slopes (group: %s)", name, gr)
+        )
+        sd_prior[[gr]] <- c(
+          sd_prior[[gr]],
+          sprintf("// no prior for %s random intercepts (group: %s)", name, gr),
+          sprintf("// no prior for %s random slopes (group: %s)", name, gr)
+        )
+      }
+
+    }
+
+    for(i in seq_len(nrow(all_random_params))) {
+      p_r <- get_prior(priors, "cor", group = all_random_params$group[i])
+      eval_prior <- c(
+        eval_prior,
+        sprintf("if(M_%s > 1) {", all_random_params$group[i]),
+        if(is.null(p_r)) sprintf("\t// no prior for %s random effects correlations", all_random_params$group[i]) else  sprintf("\tr_%1$s ~ %2$s;", all_random_params$group[i], p_r),
+        sprintf("\tw_%1$s ~ multi_normal(mu_w_%1$s, quad_form_diag(r_%1$s, s_%1$s));", all_random_params$group[i]),
+        "} else {",
+        sprintf("\tw_%1$s[,1] ~ normal(0.0, s_%1$s[1]);", all_random_params$group[i]),
+        "}"
+      )
+
+      global_prior <- c(
+        global_prior,
+        sprintf("matrix init_r_%1$s_rng(vector s_%1$s) { return %2$s; }", all_random_params$group[i], add_rng(p_r,pre=sprintf("size(s_%s),",all_random_params$group[i]))),
+        sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { matrix[N_%2$s, size(s_%1$s)] w_%1$s = rep_matrix(0.0, N_%2$s, size(s_%1$s)); for(i in 1:N_%2$s) w_%1$s[i,:] = to_row_vector(multi_normal_rng(rep_vector(0.0, size(s_%1$s)), quad_form_diag(r_%1$s, s_%1$s))); return w_%1$s; }", all_random_params$group[i], all_random_params$factor_txt[i])
+        #sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { return rep_matrix(0.0, N_%2$s, size(s_%1$s)); }", all_random_params$group[i], all_random_params$factor_txt[i])
+      )
+
+    }
 
   }
 
@@ -1060,56 +1130,114 @@ stantva_code <- function(
     )
   }
 
+  for(name in names(parameters)) {
 
-  add_code(
-    "model",
-    unlist(lapply(names(parameters), function(name) {
-      if(!is.null(parameters[[name]]$hierarchical)) {
-        prior_intercept <- get_prior(priors, "b", dpar=name, coef = "Intercept")
-        prior_slope <- get_prior(priors, "b", dpar=name)
-        if(!is.null(prior_intercept) && !is.null(prior_slope)) {
-          if(prior_intercept == prior_slope) {
-            sprintf("%s ~ %s;", if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s]", name) else sprintf("b[map_%1$s_%2$d]", name, seq_len(parameters[[name]]$hierarchical$fdim)), prior_intercept)
-          } else {
-            c(
-              sprintf("if(int_%1$s) {", name),
-              sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[:(int_%1$s-1)]]", name) else sprintf("b[map_%1$s_%2$d[:(int_%1$s-1)]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
-              sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[(int_%1$s+1):]]", name) else sprintf("b[map_%1$s_%2$d[(int_%1$s+1):]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
-              sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
-              "} else {",
-              sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s]", name) else sprintf("b[map_%1$s_%2$d]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
-              "}"
-            )
-          }
-        } else if(!is.null(prior_intercept)) {
-          c(
-            sprintf("// no prior for %s fixed slopes", name),
-            sprintf("if(int_%1$s) {", name),
-            sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
-            "}"
-          )
-        } else if(!is.null(prior_slope)) {
-          c(
-            sprintf("// no prior for %s fixed intercepts", name),
+    if(!is.null(parameters[[name]]$hierarchical)) {
+      prior_intercept <- get_prior(priors, "b", dpar=name, coef = "Intercept")
+      prior_slope <- get_prior(priors, "b", dpar=name)
+      b_prior_args <- c(b_prior_args, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("array[] int map_%1$s", name) else sprintf("array[] int map_%1$s_%2$d", name, seq_len(parameters[[name]]$hierarchical$fdim)))
+      b_prior_args <- c(b_prior_args, sprintf("int int_%1$s", name), sprintf("int M_%1$s", name))
+      if(!is.null(prior_intercept) && !is.null(prior_slope)) {
+        if(prior_intercept == prior_slope) {
+          eval_prior <- c(eval_prior, sprintf("%s ~ %s;", if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s]", name) else sprintf("b[map_%1$s_%2$d]", name, seq_len(parameters[[name]]$hierarchical$fdim)), prior_intercept))
+          b_prior <- c(b_prior, sprintf("%s = %s;", if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s) b[i]", name) else sprintf("for(i in map_%1$s_%2$d) b[i]", name, seq_len(parameters[[name]]$hierarchical$fdim)), add_rng(prior_intercept)))
+        } else {
+          eval_prior <- c(
+            eval_prior,
             sprintf("if(int_%1$s) {", name),
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[:(int_%1$s-1)]]", name) else sprintf("b[map_%1$s_%2$d[:(int_%1$s-1)]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[(int_%1$s+1):]]", name) else sprintf("b[map_%1$s_%2$d[(int_%1$s+1):]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+            sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
             "} else {",
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s]", name) else sprintf("b[map_%1$s_%2$d]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
             "}"
           )
-        } else {
-          c(
-            sprintf("// no prior for %s fixed intercepts", name),
-            sprintf("// no prior for %s fixed slopes", name)
+          b_prior <- c(
+            b_prior,
+            sprintf("if(int_%1$s) {", name),
+            sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s[:(int_%1$s-1)]) b[i]", name) else sprintf("for(i in map_%1$s_%2$d[:(int_%1$s-1)]) b[i]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+            sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s[(int_%1$s+1):]) b[i]", name) else sprintf("for(i in map_%1$s_%2$d[(int_%1$s+1):]) b[i]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+            sprintf("\t%2$s = %1$s;", add_rng(prior_intercept), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+            "} else {",
+            sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s) b[i]", name) else sprintf("for(i in map_%1$s_%2$d) b[i]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+            "}"
           )
         }
-      } else if(name %in% names(fixed)) {
-        sprintf("// prior ignored for fixed %s", name)
+      } else if(!is.null(prior_intercept)) {
+        eval_prior <- c(
+          eval_prior,
+          sprintf("// no prior for %s fixed slopes", name),
+          sprintf("if(int_%1$s) {", name),
+          sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+          "}"
+        )
+        b_prior <- c(
+          b_prior,
+          sprintf("// no prior for %s fixed slopes", name),
+          sprintf("if(int_%1$s) {", name),
+          sprintf("\t%2$s = %1$s;", add_rng(prior_intercept), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+          "}"
+        )
+      } else if(!is.null(prior_slope)) {
+        eval_prior <- c(
+          eval_prior,
+          sprintf("// no prior for %s fixed intercepts", name),
+          sprintf("if(int_%1$s) {", name),
+          sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[:(int_%1$s-1)]]", name) else sprintf("b[map_%1$s_%2$d[:(int_%1$s-1)]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+          sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[(int_%1$s+1):]]", name) else sprintf("b[map_%1$s_%2$d[(int_%1$s+1):]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+          "} else {",
+          sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s]", name) else sprintf("b[map_%1$s_%2$d]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+          "}"
+        )
+        b_prior <- c(
+          b_prior,
+          sprintf("// no prior for %s fixed intercepts", name),
+          sprintf("if(int_%1$s) {", name),
+          sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s[:(int_%1$s-1)]) b[i]", name) else sprintf("for(i in map_%1$s_%2$d[:(int_%1$s-1)]) b[i]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+          sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s[(int_%1$s+1):]) b[i]", name) else sprintf("for(i in map_%1$s_%2$d[(int_%1$s+1):]) b[i]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+          "} else {",
+          sprintf("\t%2$s = %1$s;", add_rng(prior_slope), if(parameters[[name]]$hierarchical$dim == 1L) sprintf("for(i in map_%1$s) b[i]", name) else sprintf("for(i in map_%1$s_%2$d) b[i]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+          "}"
+        )
       } else {
-        p <- get_prior(priors, "global", dpar=name)
-        if(is.null(p)) sprintf("// no prior for global %s", name) else if(grepl("^simplex\\b", parameters[[name]]$type)) sprintf("%1$s[:%2$d]/%1$s[%3$d] ~ %4$s;", name, parameters[[name]]$dim-1, parameters[[name]]$dim, p) else sprintf("%s ~ %s;", name, p)
+        eval_prior <- c(
+          eval_prior,
+          sprintf("// no prior for %s fixed intercepts", name),
+          sprintf("// no prior for %s fixed slopes", name)
+        )
+        b_prior <- c(
+          b_prior,
+          sprintf("// no prior for %s fixed intercepts", name),
+          sprintf("// no prior for %s fixed slopes", name)
+        )
       }
+    } else {
+      p <- get_prior(priors, "global", dpar=name)
+      eval_prior <- c(eval_prior, if(is.null(p)) sprintf("// no prior for global %s", name) else if(grepl("^simplex\\b", parameters[[name]]$type)) sprintf("%1$s[:%2$d]/%1$s[%3$d] ~ %4$s;", name, parameters[[name]]$dim-1, parameters[[name]]$dim, p) else sprintf("%s ~ %s;", name, p))
+      if(!is.null(p)) global_prior <- c(global_prior, if(grepl("^simplex\\b", parameters[[name]]$type)) sprintf("vector init_%1$s_rng() { vector[%3$d] %1$s; %1$s[%3$d] = 1.0; for(i in 1:%2$d) %1$s[i] = %4$s; return %1$s ./ sum(%1$s); }", name, parameters[[name]]$dim-1, parameters[[name]]$dim, add_rng(p)) else sprintf("real init_%1$s_rng() {return %2$s;}", name, add_rng(p)))
+    }
+  }
+
+  add_code(
+    "model",
+    eval_prior
+  )
+
+  initializers <- c(
+    sprintf("vector init_b_rng(%s) {", paste(b_prior_args, collapse=", ")),
+    sprintf("\tvector[%s] b;", M_var),
+    paste0("\t", b_prior),
+    "\treturn b;",
+    "}",
+    global_prior,
+    unlist(lapply(names(sd_prior), function(gr) {
+      c(
+        sprintf("vector init_s_%s_rng(%s) {", gr, paste(sd_prior_args[[gr]], collapse=", ")),
+        sprintf("\tvector[%2$s] s_%1$s = rep_vector(0.0, %2$s);", gr, all_random_params$M_var[match(gr, all_random_params$group)]),
+        paste0("\t", sd_prior[[gr]]),
+        sprintf("\treturn s_%s;", gr),
+        "}"
+      )
     }))
   )
 
@@ -1207,7 +1335,7 @@ stantva_code <- function(
     attr(df, "formula_lhs") <- formula_lhs
     attr(df, "random_factors") <- all_random_factors
   }
-  new("stantvacode", code = ret, config = call_args_list, include_path = stantva_path(), df = df, dim = dfdim, version = packageVersion(packageName()), priors = priors)
+  new("stantvacode", code = ret, config = call_args_list, include_path = stantva_path(), df = df, dim = dfdim, version = packageVersion(packageName()), priors = priors, initializers = initializers)
 }
 
 
@@ -1219,8 +1347,9 @@ stantva_code <- function(
 #'@slot dim The dimensions of the model parameters.
 #'@slot version The RStanTVA package version that was used to generate this model fit.
 #'@slot priors Priors for the model parameters.
+#'@slot initializers Stan code for the generation of initial samples
 #'@export
-setClass("stantvacode", slots = c("code" = "character", "config" = "list", "include_path" = "character", "df" = "integer", "dim" = "integer", "version" = "ANY", "priors" = "ANY"))
+setClass("stantvacode", slots = c("code" = "character", "config" = "list", "include_path" = "character", "df" = "integer", "dim" = "integer", "version" = "ANY", "priors" = "ANY", "initializers" = "character"))
 
 
 #'Show StanTVA code
@@ -1286,6 +1415,8 @@ stantva_model <- function(..., stan_options = list()) {
   }
   m <- do.call(stan_model, stan_options) %>% as("stantvamodel")
   m@code <- mc
+  m@initializers <- new.env(parent = baseenv())
+  expose_stan_functions(stanc(model_code = c("functions {",mc@initializers,"}")), env = m@initializers)
   m
 }
 
@@ -1313,7 +1444,7 @@ write_stantva_model <- function(model, file = stdout()) {
 #'@slot code The StanTVA code object that was used to compile this model.
 #'@importClassesFrom rstan stanmodel
 #'@export
-setClass("stantvamodel", contains = "stanmodel", slots = c("code" = "stantvacode"))
+setClass("stantvamodel", contains = "stanmodel", slots = c("code" = "stantvacode", "initializers" = "environment"))
 
 #'StanTVA fit class
 #'@slot stanmodel The StanTVA model object that was fitted to the data.
@@ -1341,27 +1472,43 @@ setMethod("show", c(object="stantvamodel"), function(object) {
   invisible(object)
 })
 
-init_sampler <- function(model, pdata) {
-  mc <- if(inherits(model, "stantvamodel")) model@code else if(inherits(model, "stantvacode")) model else stop("`model` must be stantvamodel or stantvacode!")
+init_sampler <- function(model, pdata, seed = 0L) {
+  f <- sampling(as(model,"stanmodel"), pdata, chains = 1, iter = 1, init = "0", seed = seed, algorithm = "Fixed_param")
   function(chain_id = 1) {
-    if(is.null(pdata$X)) {
-      list(.p = 0L)
-    } else {
-      ret <- list(.p = 0L)
-      #ret$b <- double(ncol(pdata$X))
-      #ret$b[colnames(pdata$X) == "Intercept"] <- as.array(runif(sum(colnames(pdata$X) == "Intercept"), -0.2, 0.2))
-      rfs <- bind_rows(bind_rows(lapply(mc@config$formula, parse_formula))$random)
-      for(i in seq_len(nrow(rfs))) {
-        for(j in seq_len(mc@df[rfs$param[i]])) {
-          rf <- if(mc@dim[rfs$param[i]] > 1L && !rfs$custom[i]) paste0(rfs$group[i], "_", j) else rfs$group[i]
-          #ret[[paste0("r_",rf)]] <- diag(ncol(pdata[[paste0("Z_",rf)]]))
-          #ret[[paste0("s_",rf)]] <- as.array(if_else(colnames(pdata[[paste0("Z_",rf)]]) == "Intercept", 0.1, 0.01))
-          #message(paste0("N_", rfs$factor_txt[i]),",",paste0("Z_",rf))
-          ret[[paste0("w_",rf)]] <- matrix(0, nrow = pdata[[paste0("N_", rfs$factor_txt[i])]], ncol = ncol(pdata[[paste0("Z_",rf)]]))
+    init_rng <- get_rng(if(seed == 0L) 0L else seed + chain_id)
+    for(try_no in 1:100) {
+      p <- list()
+      initializers <- Filter(function(x) startsWith(x,"init_"), names(model@initializers))
+      while(length(initializers) > 0L) {
+        for(fn in initializers) {
+          vn <- substr(fn,6,nchar(fn)-4)
+          z <- formals(model@initializers[[fn]])
+          skipInit <- FALSE
+          for(i in names(z)) {
+            if(i == "base_rng__") {
+              z[[i]] <- init_rng
+            } else if(i == "lp__") {
+              z[[i]] <- 0
+            } else if(i == "pstream__") {
+              z[[i]] <- get_stream()
+            } else if(i %in% names(p)) {
+              z[[i]] <- p[[i]]
+            } else if(i %in% names(pdata)) {
+              z[[i]] <- pdata[[i]]
+            } else {
+              skipInit <- TRUE
+              break
+            }
+          }
+          if(skipInit) next
+          p[[vn]] <- do.call(model@initializers[[fn]], as.list(z))
+          if(grepl("^b$|^[srw]_", vn)) p[[vn]] <- as.array(p[[vn]])
+          initializers <- setdiff(initializers, fn)
         }
       }
-      ret
+      if(is.finite(log_prob(f, unconstrain_pars(f, p))) && is.finite(grad_log_prob(f, unconstrain_pars(f, p)))) return(p)
     }
+    stop("Could not generate valid proposal after 100 tries!")
   }
 }
 
@@ -1392,11 +1539,12 @@ setGeneric("optimizing")
 #'@param data The data to which the model should be fitted, usually a \code{data.frame}.
 #'@param init How to initialize the individual chains, see \code{\link[rstan:sampling]{rstan::sampling()}}. Note that for \code{random}, any lower-level hierarchical (e.g., subject-level) parameters are initialized to zero.
 #'@param backend Which backend to use for fitting (default: \code{rstan})
+#'@param seed Seed for random number generation and chain initialization
 #'@param cpp_options Which options to pass to \code{stan_model()} for compiling the C++ code.
 #'@param ... Further arguments passed to the sampling handler of the specified backend.
 #'@return Returns a \code{stantva_fit} object, which inherits from \code{\link[rstan:stanfit]{stanfit}}, representing the fit of \code{object} to \code{data}.
 #'@export
-setMethod("sampling", c(object = "stantvamodel"), function(object, data,init = "random", ..., backend = c("rstan","cmdstanr","cmdstanr_mpi"), cpp_options = if(match.arg(backend) == "cmdstanr") list(stan_threads = object@code@config$parallel) else if(match.arg(backend) == "cmdstanr_mpi") list(CXX = "mpicxx", TBB_CXX_TYPE = "gcc", STAN_MPI = TRUE)) {
+setMethod("sampling", c(object = "stantvamodel"), function(object, data, init = "random", seed = sample.int(.Machine$integer.max, 1), ..., backend = c("rstan","cmdstanr","cmdstanr_mpi"), cpp_options = if(match.arg(backend) == "cmdstanr") list(stan_threads = object@code@config$parallel) else if(match.arg(backend) == "cmdstanr_mpi") list(CXX = "mpicxx", TBB_CXX_TYPE = "gcc", STAN_MPI = TRUE)) {
   if(object@code@config$locations != ncol(data$S)) stop("Cannot fit a StanTVA model compiled for ",object@code@config$locations," location(s) to a data set with ",ncol(data$S)," location(s)!")
   pdata <- prepare_data(data, object)
   formula_lhs <- attr(object@code@df, "formula_lhs")
@@ -1412,30 +1560,28 @@ setMethod("sampling", c(object = "stantvamodel"), function(object, data,init = "
   } else {
     pars <- setdiff(na.omit(pars), pars_to_exclude)
   }
-  if((missing(init) || identical(init, "random")) && !is.null(pdata$X)) {
-    init <- init_sampler(object, pdata)
-  } else if(missing(init)) {
-    init <- "random"
+  if(missing(init) || identical(init, "random")) {
+    init <- init_sampler(object, pdata, seed)
   }
   if(backend == "rstan") {
     if(length(pars) == 0 && isFALSE(include)) {
-      f <- callNextMethod(object, pdata, pars = NA, include = TRUE, init = init, ...)
+      f <- callNextMethod(object, pdata, pars = NA, include = TRUE, init = init, seed = seed, ...)
     } else {
-      f <- callNextMethod(object, pdata, pars = pars, include = include, init = init, ...)
+      f <- callNextMethod(object, pdata, pars = pars, include = include, init = init, seed = seed, ...)
     }
     f@stanmodel <- object
     f <- as(f, "stantvafit")
     f@data <- pdata
   } else if(backend == "cmdstanr") {
     m <- cmdstanr::cmdstan_model(stan_file = cmdstanr::write_stan_file(object@code@code), include_paths = stantva_path(), cpp_options = cpp_options)
-    x <- m$sample(pdata, init = init, threads_per_chain = rstan_options("threads_per_chain"), save_warmup = 0L, ...)
+    x <- m$sample(pdata, init = init, threads_per_chain = rstan_options("threads_per_chain"), save_warmup = 0L, seed = seed, ...)
     for(fp in x$output_files()) {
       fix_cmdstanr_output(fp)
     }
     f <- stancsv2stantvafit(x$output_files(), data, object@code)
   } else if(backend == "cmdstanr_mpi") {
     m <- cmdstanr::cmdstan_model(stan_file = cmdstanr::write_stan_file(object@code@code), include_paths = stantva_path(), cpp_options = cpp_options)
-    x <- m$sample_mpi(pdata, init = init, save_warmup = 0L, ...)
+    x <- m$sample_mpi(pdata, init = init, save_warmup = 0L, seed = seed, ...)
     for(fp in x$output_files()) {
       fix_cmdstanr_output(fp)
     }
@@ -1449,16 +1595,17 @@ setMethod("sampling", c(object = "stantvamodel"), function(object, data,init = "
 #'@param object The StanTVA model object.
 #'@param data The data to which the model should be fitted, usually a \code{data.frame}.
 #'@param init How to initialize the individual chains, see \code{\link[rstan:optimizing]{rstan::optimizing()}}. Note that for \code{random}, any lower-level hierarchical (e.g., subject-level) parameters are initialized to zero.
+#'@param seed Seed for random number generation and chain initialization
 #'@param ... Further arguments passed to \code{\link[rstan:optimizing]{rstan::optimizing()}}.
 #'@return A list, representing the maximum-likelihood estimate, see \code{\link[rstan:optimizing]{rstan::optimizing()}}.
 #'@export
-setMethod("optimizing", c(object = "stantvamodel"), function(object, data, init, ...) {
+setMethod("optimizing", c(object = "stantvamodel"), function(object, data, init, seed = sample.int(.Machine$integer.max, 1), ...) {
   if(object@code@config$locations != ncol(data$S)) stop("Cannot fit a StanTVA model compiled for ",object@code@config$locations," location(s) to a data set with ",ncol(data$S)," location(s)!")
   formula_lhs <- attr(object@code@df, "formula_lhs")
   pdata <- prepare_data(data, object)
   pars <- NULL
   include <- TRUE
-  r <- callNextMethod(object, pdata, init = if(missing(init)) init_sampler(object, pdata) else init)
+  r <- callNextMethod(object, pdata, init = if(missing(init)) init_sampler(object, pdata, seed) else init, seed = seed)
   if(!is.null(r$par)) {
     original_names <- names(r$par)
     keep <- !grepl("^(theta|phi)\\[|^r_", original_names)

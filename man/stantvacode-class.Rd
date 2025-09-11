@@ -23,5 +23,7 @@ StanTVA code class
 \item{\code{version}}{The RStanTVA package version that was used to generate this model fit.}
 
 \item{\code{priors}}{Priors for the model parameters.}
+
+\item{\code{initializers}}{Stan code for the generation of initial samples}
 }}
 

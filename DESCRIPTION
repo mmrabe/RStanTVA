@@ -25,9 +25,10 @@ Imports:
     cli,
     lme4,
     brms,
-    rlang
+    rlang,
+    Rcpp
 Suggests:
     cmdstanr
 Additional_repositories: https://stan-dev.r-universe.dev
 LazyData: true
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
