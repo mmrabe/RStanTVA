@@ -11,6 +11,7 @@ sampling(object, ...)
   object,
   data,
   init = "random",
+  seed = sample.int(.Machine$integer.max, 1),
   ...,
   backend = c("rstan", "cmdstanr", "cmdstanr_mpi"),
   cpp_options = if (match.arg(backend) == "cmdstanr") list(stan_threads =
@@ -26,6 +27,8 @@ sampling(object, ...)
 \item{data}{The data to which the model should be fitted, usually a \code{data.frame}.}
 
 \item{init}{How to initialize the individual chains, see \code{\link[rstan:sampling]{rstan::sampling()}}. Note that for \code{random}, any lower-level hierarchical (e.g., subject-level) parameters are initialized to zero.}
+
+\item{seed}{Seed for random number generation and chain initialization}
 
 \item{backend}{Which backend to use for fitting (default: \code{rstan})}
 

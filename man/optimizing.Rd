@@ -7,7 +7,7 @@
 \usage{
 optimizing(object, ...)
 
-\S4method{optimizing}{stantvamodel}(object, data, init, ...)
+\S4method{optimizing}{stantvamodel}(object, data, init, seed = sample.int(.Machine$integer.max, 1), ...)
 }
 \arguments{
 \item{object}{The StanTVA model object.}
@@ -17,6 +17,8 @@ optimizing(object, ...)
 \item{data}{The data to which the model should be fitted, usually a \code{data.frame}.}
 
 \item{init}{How to initialize the individual chains, see \code{\link[rstan:optimizing]{rstan::optimizing()}}. Note that for \code{random}, any lower-level hierarchical (e.g., subject-level) parameters are initialized to zero.}
+
+\item{seed}{Seed for random number generation and chain initialization}
 }
 \value{
 A list, representing the maximum-likelihood estimate, see \code{\link[rstan:optimizing]{rstan::optimizing()}}.
