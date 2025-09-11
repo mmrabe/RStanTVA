@@ -16,7 +16,7 @@ The printed object.
 Prints a StanTVA model object.
 }
 \examples{
-\donttest{
+\dontrun{
 model <- stantva_model(locations = 4)
 show(model)
 }

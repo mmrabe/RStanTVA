@@ -20,7 +20,7 @@ See \code{\link[rstan:extract]{rstan::extract()}} for details.
 Returns posterior samples from a fitted RStanTVA model.
 }
 \examples{
-\donttest{
+\dontrun{
 f <- read_stantva_fit("fit.rds")
 extract(f, "C_Intercept")
 }

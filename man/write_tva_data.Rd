@@ -20,7 +20,7 @@ No return value, called for side effects.
 Writes TVA data to a file.
 }
 \examples{
-\donttest{
+\dontrun{
 data <- read_tva_data("data.dat")
 write_tva_data(data, "data.dat")
 }

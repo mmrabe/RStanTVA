@@ -30,7 +30,7 @@ Prints a StanTVA fit object.
 
 }}
 \examples{
-\donttest{
+\dontrun{
 print(fit)
 }
 }

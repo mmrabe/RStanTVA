@@ -16,7 +16,7 @@ The fixed effects.
 Returns the random effects for a StanTVA fit object.
 }
 \examples{
-\donttest{
+\dontrun{
 random_effects <- ranef(fit)
 random_effects
 }

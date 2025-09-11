@@ -16,7 +16,7 @@ A character vector of parameter aliases.
 Returns the StanTVA parameter aliases for the underlying RStan fit.
 }
 \examples{
-\donttest{
+\dontrun{
 al <- alias(fit)
 al
 }
