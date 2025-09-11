@@ -20,7 +20,7 @@ See \code{\link[rstan:summary,stanfit-method]{rstan::summary()}} for details.
 Summarize the distributions of estimated parameters and derived quantities using the posterior draws.
 }
 \examples{
-\donttest{
+\dontrun{
 f <- read_stantva_fit("fit.rds")
 summary(f, "C_Intercept", probs = c(.025, .975))
 }

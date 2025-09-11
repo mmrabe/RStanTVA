@@ -16,7 +16,7 @@ The model coefficients, grouped by random factors.
 Returns the model coefficients (sum of fixed + random effects, grouped by random factor) for a StanTVA fit object.
 }
 \examples{
-\donttest{
+\dontrun{
 fixef <- coef(fit)
 fixef
 }

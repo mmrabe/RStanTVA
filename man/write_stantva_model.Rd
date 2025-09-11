@@ -18,5 +18,5 @@ No return value, called for side effects.
 Writes a StanTVA model to a file.
 }
 \examples{
-\donttest{write_stantva_model(model, "model.stan")}
+\dontrun{write_stantva_model(model, "model.stan")}
 }

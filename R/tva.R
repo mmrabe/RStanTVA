@@ -78,7 +78,7 @@ stantva_path <- function() {
 #' @param ... Additional arguments passed to \code{\link[readr:read_table]{read_table()}}.
 #' @return A TVA data object, which inherits from \code{data.frame}.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' data <- read_tva_data("data.dat")
 #' data
 #' }
@@ -109,7 +109,7 @@ read_tva_data <- function(file, set = LETTERS, ...) {
 #' @param ... Additional arguments passed to \code{\link[readr:write_tsv]{write_tsv()}}.
 #' @return No return value, called for side effects.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' data <- read_tva_data("data.dat")
 #' write_tva_data(data, "data.dat")
 #' }
@@ -149,7 +149,7 @@ setGeneric("model_code", function(object, type) UseMethod("model_code"))
 #' @param type The type of code to return (\code{stan}: formatted StanTVA, \code{stan2}: ready-to-compile Stan code, \code{cpp}: generated C++ code).
 #' @return A RStanTVA model code object (\code{stan}), or a string containing the code (\code{stan2} or \code{cpp}).
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' model <- stantva_model(locations = 2)
 #' model_code(model)
 #' }
@@ -1244,7 +1244,7 @@ setMethod("show", "stantvacode", function(object) {
 #'@param contrasts Any contrasts specified to factors in the data set.
 #'@return The StanTVA fit object.
 #'@examples
-#'\donttest{
+#'\dontrun{
 #'data <- read_tva_data("data.dat")
 #'model <- stantva_code(locations = 6)
 #'fit <- stancsv2stantvafit("chain1.csv", data, model)
@@ -1271,7 +1271,7 @@ stancsv2stantvafit <- function(csv_file, data, model, contrasts = list()) {
 #' @param stan_options The Stan options, passed to \code{\link[rstan:stan_model]{stan_model()}}
 #' @return The StanTVA model object.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' model <- stantva_model(locations = 2, task = "pr")
 #' model
 #' }
@@ -1295,7 +1295,7 @@ stantva_model <- function(..., stan_options = list()) {
 #' @param file The file name.
 #' @return No return value, called for side effects.
 #' @examples
-#' \donttest{write_stantva_model(model, "model.stan")}
+#' \dontrun{write_stantva_model(model, "model.stan")}
 #'@export
 write_stantva_model <- function(model, file = stdout()) {
   code <- if(inherits(model, "stantvamodel") || inherits(model, "stantvafit")) {
@@ -1328,7 +1328,7 @@ setClass("stantvafit", contains = "stanfit", slots = c("stanmodel" = "stantvamod
 #' @param object The StanTVA model object.
 #' @return The printed object.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' model <- stantva_model(locations = 4)
 #' show(model)
 #' }
@@ -1477,7 +1477,7 @@ setMethod("optimizing", c(object = "stantvamodel"), function(object, data, init,
 #' @param object The StanTVA fit.
 #' @return The pointwise log likelihood.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' loglik <- logLik(model, data, params)
 #' loglik
 #' }
@@ -1526,7 +1526,7 @@ setMethod("logLik", "stantvafit", function(object) {
 #' @param files The file names.
 #' @return The StanTVA fit object.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' fit <- read_stantva_fit(c("chain1.rds", "chain2.rds"))
 #' fit
 #' }
@@ -1567,7 +1567,7 @@ read_stantva_fit <- function(files) {
 #' @param ... Additional arguments passed to \code{\link[base:saveRDS]{saveRDS()}}.
 #' @return No return value, called for side effects.
 #' @examples
-#' \donttest{write_stantva_fit(fit, "fit.rds")}
+#' \dontrun{write_stantva_fit(fit, "fit.rds")}
 #' @export
 write_stantva_fit <- function(fit, file, ...) if(inherits(fit, "stantvafit")) saveRDS(fit, file, ...) else stop("`fit` must be a `stantvafit` object!")
 
@@ -1581,7 +1581,7 @@ alias.stantvafit <- function(object) {
 #' @param object The StanTVA fit object.
 #' @return A character vector of parameter aliases.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' al <- alias(fit)
 #' al
 #' }
@@ -1609,7 +1609,7 @@ fixef.stantvafit <- function(object) {
 #' @param object The StanTVA fit object.
 #' @return The fixed effects.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' fixed_effects <- fixef(fit)
 #' fixed_effects
 #' }
@@ -1663,7 +1663,7 @@ ranef.stantvafit <- function(object) {
 #' @param object The StanTVA fit object.
 #' @return The fixed effects.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' random_effects <- ranef(fit)
 #' random_effects
 #' }
@@ -1695,7 +1695,7 @@ coef.stanfit <- function(object) {
 #' @param object The StanTVA fit object.
 #' @return The model coefficients, grouped by random factors.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' fixef <- coef(fit)
 #' fixef
 #' }
@@ -1760,7 +1760,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
 #' @param variables The names of the parameters to predict.
 #' @return The predictions.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' p <- predict(fit, variables = c("C","K"))
 #' colMeans(p$C)
 #' }
@@ -1779,7 +1779,7 @@ fitted.stantvafit <- function(object, variables = names(object@stanmodel@code@df
 #' @param variables The names of the parameters to retrieve.
 #' @return The fitted values.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' p <- fitted(fit, variables = c("C","K"))
 #' colMeans(p$C)
 #' }
@@ -1791,7 +1791,7 @@ setMethod("fitted", "stantvafit", fitted.stantvafit)
 #' @param data The TVA report data as a \code{data.frame}.
 #' @return The function returns a transmuted \code{data.frame}/\code{tibble} with columns \code{condition} (copied from \code{data}), \code{exposure} (copied from \code{data$T}), \code{n_items}, \code{n_targets}, \code{n_distractors}, and \code{score} (number of correctly reported items).
 #' @examples
-#' \donttest{tva_report(tva_recovery)}
+#' \dontrun{tva_report(tva_recovery)}
 #' @export
 tva_report <- function(data) {
   data %>% mutate(
@@ -1815,7 +1815,7 @@ setMethod("show", "stantvafit", function(object) print(object))
 #' @param ... Currently not used.
 #' @return Returns \code{x}. Usually called for its side effects (printing to the console).
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' print(fit)
 #' }
 #'@export
@@ -2012,7 +2012,7 @@ translate_names <- function(model, data, names) {
 #'@param x The StanTVA fit.
 #'@return The list of parameter names and aliases.
 #'@examples
-#'\donttest{
+#'\dontrun{
 #'f <- read_stantva_fit("fit.rds")
 #'names(f)
 #'}
@@ -2027,7 +2027,7 @@ setMethod("names", "stantvafit", function(x) translate_names(x@stanmodel, x@data
 #'@param ... Additional arguments passed to \code{\link[rstan:extract]{rstan::extract()}}, e.g. \code{permuted} and \code{inc_warmup}.
 #'@return See \code{\link[rstan:extract]{rstan::extract()}} for details.
 #'@examples
-#'\donttest{
+#'\dontrun{
 #'f <- read_stantva_fit("fit.rds")
 #'extract(f, "C_Intercept")
 #'}
@@ -2047,7 +2047,7 @@ setMethod("extract", c(object="stantvafit"), function(object, pars, ...) {
 #'@param ... Additional arguments passed to \code{\link[rstan:summary,stanfit-method]{rstan::summary()}}, e.g. \code{probs} and \code{use_cache}.
 #'@return See \code{\link[rstan:summary,stanfit-method]{rstan::summary()}} for details.
 #'@examples
-#'\donttest{
+#'\dontrun{
 #'f <- read_stantva_fit("fit.rds")
 #'summary(f, "C_Intercept", probs = c(.025, .975))
 #'}

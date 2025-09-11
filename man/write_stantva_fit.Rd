@@ -20,5 +20,5 @@ No return value, called for side effects.
 Writes a StanTVA fit object to a file.
 }
 \examples{
-\donttest{write_stantva_fit(fit, "fit.rds")}
+\dontrun{write_stantva_fit(fit, "fit.rds")}
 }

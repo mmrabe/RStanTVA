@@ -31,7 +31,7 @@ Extracts the Stan code from a StanTVA model object.
 
 }}
 \examples{
-\donttest{
+\dontrun{
 model <- stantva_model(locations = 2)
 model_code(model)
 }

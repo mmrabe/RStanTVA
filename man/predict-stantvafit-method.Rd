@@ -20,7 +20,7 @@ The predictions.
 Returns the predictions for latent model parameters.
 }
 \examples{
-\donttest{
+\dontrun{
 p <- predict(fit, variables = c("C","K"))
 colMeans(p$C)
 }
