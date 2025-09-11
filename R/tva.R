@@ -10,7 +10,6 @@
 #'@importFrom lme4 findbars subbars fixef ranef nobars
 #'@importFrom brms prior set_prior
 #'@importFrom rlang .data .env
-#'@importFrom Rcpp sourceCpp registerPlugin
 #'
 
 
