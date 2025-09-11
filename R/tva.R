@@ -872,6 +872,7 @@ stantva_code <- function(
   global_prior <- c()
   sd_prior <- list()
   sd_prior_args <- list()
+  M_var <- 0L
 
   # hierarchical stuff
 
@@ -1473,7 +1474,7 @@ setMethod("show", c(object="stantvamodel"), function(object) {
 })
 
 init_sampler <- function(model, pdata, seed = 0L) {
-  f <- sampling(as(model,"stanmodel"), pdata, chains = 1, iter = 1, init = "0", seed = seed, algorithm = "Fixed_param")
+  f <- sampling(as(model,"stanmodel"), pdata, chains = 1L, iter = 1L, refresh = 0L, init = "0", seed = seed, algorithm = "Fixed_param")
   function(chain_id = 1) {
     init_rng <- get_rng(if(seed == 0L) 0L else seed + chain_id)
     for(try_no in 1:100) {
@@ -1506,7 +1507,13 @@ init_sampler <- function(model, pdata, seed = 0L) {
           initializers <- setdiff(initializers, fn)
         }
       }
-      if(is.finite(log_prob(f, unconstrain_pars(f, p))) && is.finite(grad_log_prob(f, unconstrain_pars(f, p)))) return(p)
+      init_lp <- log_prob(f, unconstrain_pars(f, p), gradient = TRUE)
+      if(is.finite(init_lp) && all(is.finite(attr(init_lp, "gradient")))) {
+        if(try_no > 1L) {
+          message("Needed ",try_no," attempts for generating a valid initial proposal for chain #", chain_id,"!")
+        }
+        return(p)
+      }
     }
     stop("Could not generate valid proposal after 100 tries!")
   }
