@@ -920,6 +920,7 @@ stantva_code <- function(
       sprintf("int M_%s = %s;", all_random_params$group, all_random_params$M_var),
       sprintf("array[N_%1$s] int<lower=0> Ntrials_by_%1$s = rep_array(0, N_%1$s);", clean_name(all_random_factors)),
       sprintf("array[N_%1$s,N] int<lower=0> trials_by_%1$s = rep_array(0, N_%1$s, N);", clean_name(all_random_factors)),
+      sprintf("matrix[N_%1$s,N_%1$s-1] Q_%1$s = sum_to_zero_basis(N_%1$s);", clean_name(all_random_factors)),
       if(length(all_random_factors) > 0) "for(i in 1:N) {",
       sprintf("\tNtrials_by_%1$s[%1$s[i]] += 1;", clean_name(all_random_factors)),
       sprintf("\ttrials_by_%1$s[%1$s[i],Ntrials_by_%1$s[%1$s[i]]] = i;", clean_name(all_random_factors)),
@@ -928,9 +929,14 @@ stantva_code <- function(
     add_code(
       "parameters",
       "vector[M] b;",
-      sprintf("corr_matrix[M_%1$s] r_%1$s;", all_random_params$group),
       sprintf("vector<lower=machine_precision()>[M_%1$s] s_%1$s;", all_random_params$group),
-      sprintf("array[N_%2$s] vector[M_%1$s] w_%1$s;", all_random_params$group, all_random_params$factor_txt)
+      sprintf("array[M_%1$s] unit_vector[N_%2$s-1] nw_%1$s;", all_random_params$group, all_random_params$factor_txt)
+    )
+    add_code(
+      "transformed parameters",
+      sprintf("matrix[N_%2$s,M_%1$s] w_%1$s;", all_random_params$group, all_random_params$factor_txt),
+      sprintf("for(i in 1:M_%1$s) w_%1$s[:,i] = (Q_%2$s * nw_%1$s[i]) * sqrt(N_%2$s - 1) * s_%1$s[i];", all_random_params$group, all_random_params$factor_txt),
+      sprintf("matrix[M_%1$s,M_%1$s] r_%1$s = sample_covariance(w_%1$s) ./ tcrossprod(to_matrix(s_%1$s));", all_random_params$group)
     )
     add_code(
       "transformed parameters",
@@ -962,9 +968,9 @@ stantva_code <- function(
                      lapply(j, function(i) {
                        k <- match(all_random_effects$param[i], all_params$name)
                        if(all_params$dim[k] == 1L) {
-                         sprintf("\t%1$s[j] += Z_%2$s[j,map_%1$s_%2$s] * w_%2$s[i,map_%1$s_%2$s];", all_random_effects$param[i], all_random_effects$group[i])
+                         sprintf("\t%1$s[j] += Z_%2$s[j,map_%1$s_%2$s] * w_%2$s[i,map_%1$s_%2$s]';", all_random_effects$param[i], all_random_effects$group[i])
                        } else {
-                         sprintf("\t%1$s[j,%3$d] += Z_%2$s[j,map_%1$s_%3$d_%2$s] * w_%2$s[i,map_%1$s_%3$d_%2$s];", all_random_effects$param[i], all_random_effects$group[i], all_random_effects$index[i])
+                         sprintf("\t%1$s[j,%3$d] += Z_%2$s[j,map_%1$s_%3$d_%2$s] * w_%2$s[i,map_%1$s_%3$d_%2$s]';", all_random_effects$param[i], all_random_effects$group[i], all_random_effects$index[i])
                        }
                      })
                    ),
@@ -1091,17 +1097,18 @@ stantva_code <- function(
         eval_prior,
         sprintf("if(M_%s > 1) {", all_random_params$group[i]),
         if(is.null(p_r)) sprintf("\t// no prior for %s random effects correlations", all_random_params$group[i]) else  sprintf("\tr_%1$s ~ %2$s;", all_random_params$group[i], p_r),
-        sprintf("\tw_%1$s ~ multi_normal(mu_w_%1$s, quad_form(r_%1$s, to_matrix(s_%1$s)));", all_random_params$group[i]),
-        "} else {",
-        sprintf("\tw_%1$s[,1] ~ normal(0.0, s_%1$s[1]);", all_random_params$group[i]),
+        #sprintf("\tw_%1$s ~ multi_normal(mu_w_%1$s, quad_form(r_%1$s, to_matrix(s_%1$s)));", all_random_params$group[i]),
+        #"} else {",
+        #sprintf("\tw_%1$s[,1] ~ normal(0.0, s_%1$s[1]);", all_random_params$group[i]),
         "}"
       )
 
       global_prior <- c(
         global_prior,
-        sprintf("matrix init_r_%1$s_rng(vector s_%1$s) { return %2$s; }", all_random_params$group[i], add_rng(p_r,pre=sprintf("size(s_%s),",all_random_params$group[i]))),
+        #sprintf("matrix init_r_%1$s_rng(vector s_%1$s) { return %2$s; }", all_random_params$group[i], add_rng(p_r,pre=sprintf("size(s_%s),",all_random_params$group[i]))),
         #sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { matrix[N_%2$s, size(s_%1$s)] w_%1$s = rep_matrix(0.0, N_%2$s, size(s_%1$s)); for(i in 1:N_%2$s) w_%1$s[i,:] = to_row_vector(multi_normal_rng(rep_vector(0.0, size(s_%1$s)), quad_form(r_%1$s, to_matrix(s_%1$s)))); return w_%1$s; }", all_random_params$group[i], all_random_params$factor_txt[i])
-        sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { return rep_matrix(0.0, N_%2$s, size(s_%1$s)); }", all_random_params$group[i], all_random_params$factor_txt[i])
+        #sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { return rep_matrix(0.0, N_%2$s, size(s_%1$s)); }", all_random_params$group[i], all_random_params$factor_txt[i])
+        sprintf("matrix init_nw_%1$s_rng(int N_%2$s, vector s_%1$s) { matrix[size(s_%1$s),N_%2$s-1] ret; for(i in 1:rows(ret)) { for(j in 1:cols(ret)) ret[i,j]=std_normal_rng(); ret[i,:] /= norm2(ret[i,:]); } return ret; }", all_random_params$group[i], all_random_params$factor_txt[i])
       )
 
     }
@@ -1480,7 +1487,7 @@ setMethod("show", c(object="stantvamodel"), function(object) {
 })
 
 init_sampler <- function(model, pdata, seed = 0L) {
-  f <- sampling(as(model,"stanmodel"), pdata, chains = 1L, iter = 1L, refresh = 0L, init = "0", seed = seed, algorithm = "Fixed_param")
+  f <- sampling(as(model,"stanmodel"), pdata, chains = 1L, iter = 1L, refresh = 0L, init = "random", seed = seed, algorithm = "Fixed_param")
   function(chain_id = 1) {
     init_rng <- get_rng(if(seed == 0L) 0L else seed + chain_id)
     max_tries <- 100L
@@ -1514,7 +1521,7 @@ init_sampler <- function(model, pdata, seed = 0L) {
           }
           if(skipInit) next
           p[[vn]] <- do.call(model@initializers[[fn]], as.list(z))
-          if(grepl("^b$|^[srw]_", vn)) p[[vn]] <- as.array(p[[vn]])
+          if(grepl("^b$|^(s|nw)_", vn)) p[[vn]] <- as.array(p[[vn]])
           initializers <- setdiff(initializers, fn)
         }
       }
@@ -1689,7 +1696,7 @@ setMethod("logLik", "stantvafit", function(object) {
     substitute(
       {
         p <- if(!is.null(attr(fx@stanmodel@code@df,"formula_lhs"))) attr(fx@stanmodel@code@df,"formula_lhs")[2,] else c()
-        .strippars(fn, p)
+        .strippars(fn, c(p, Filter(function(x) startsWith(x, "nw_"), fx@model_pars)))
       },
       list(fx = as.name(f), fn = as.character(f))
     ),
