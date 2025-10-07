@@ -1091,7 +1091,7 @@ stantva_code <- function(
         eval_prior,
         sprintf("if(M_%s > 1) {", all_random_params$group[i]),
         if(is.null(p_r)) sprintf("\t// no prior for %s random effects correlations", all_random_params$group[i]) else  sprintf("\tr_%1$s ~ %2$s;", all_random_params$group[i], p_r),
-        sprintf("\tw_%1$s ~ multi_normal(mu_w_%1$s, quad_form_diag(r_%1$s, s_%1$s));", all_random_params$group[i]),
+        sprintf("\tw_%1$s ~ multi_normal(mu_w_%1$s, quad_form(r_%1$s, to_matrix(s_%1$s)));", all_random_params$group[i]),
         "} else {",
         sprintf("\tw_%1$s[,1] ~ normal(0.0, s_%1$s[1]);", all_random_params$group[i]),
         "}"
@@ -1100,8 +1100,8 @@ stantva_code <- function(
       global_prior <- c(
         global_prior,
         sprintf("matrix init_r_%1$s_rng(vector s_%1$s) { return %2$s; }", all_random_params$group[i], add_rng(p_r,pre=sprintf("size(s_%s),",all_random_params$group[i]))),
-        sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { matrix[N_%2$s, size(s_%1$s)] w_%1$s = rep_matrix(0.0, N_%2$s, size(s_%1$s)); for(i in 1:N_%2$s) w_%1$s[i,:] = to_row_vector(multi_normal_rng(rep_vector(0.0, size(s_%1$s)), quad_form_diag(r_%1$s, s_%1$s))); return w_%1$s; }", all_random_params$group[i], all_random_params$factor_txt[i])
-        #sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { return rep_matrix(0.0, N_%2$s, size(s_%1$s)); }", all_random_params$group[i], all_random_params$factor_txt[i])
+        #sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { matrix[N_%2$s, size(s_%1$s)] w_%1$s = rep_matrix(0.0, N_%2$s, size(s_%1$s)); for(i in 1:N_%2$s) w_%1$s[i,:] = to_row_vector(multi_normal_rng(rep_vector(0.0, size(s_%1$s)), quad_form(r_%1$s, to_matrix(s_%1$s)))); return w_%1$s; }", all_random_params$group[i], all_random_params$factor_txt[i])
+        sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { return rep_matrix(0.0, N_%2$s, size(s_%1$s)); }", all_random_params$group[i], all_random_params$factor_txt[i])
       )
 
     }
@@ -1416,7 +1416,14 @@ stantva_model <- function(..., stan_options = list()) {
   m <- do.call(stan_model, stan_options) %>% as("stantvamodel")
   m@code <- mc
   m@initializers <- new.env(parent = baseenv())
-  expose_stan_functions(stanc(model_code = c("functions {",mc@initializers,"}")), env = m@initializers)
+  expose_stan_functions(stanc(model_code = c(
+    "functions {",
+    "\treal halfnormal_rng(real mu, real sigma) {",
+    "\t\treturn abs(normal_rng(mu, sigma));",
+    "\t}",
+    mc@initializers,
+    "}"
+  )), env = m@initializers)
   m
 }
 
@@ -1476,7 +1483,12 @@ init_sampler <- function(model, pdata, seed = 0L) {
   f <- sampling(as(model,"stanmodel"), pdata, chains = 1L, iter = 1L, refresh = 0L, init = "0", seed = seed, algorithm = "Fixed_param")
   function(chain_id = 1) {
     init_rng <- get_rng(if(seed == 0L) 0L else seed + chain_id)
-    for(try_no in 1:100) {
+    max_tries <- 100L
+    target_tries <- 5L
+    valid_tries <- 0L
+    best_init <- list()
+    best_init_ll <- -Inf
+    for(try_no in seq_len(max_tries)) {
       p <- list()
       initializers <- Filter(function(x) startsWith(x,"init_"), names(model@initializers))
       while(length(initializers) > 0L) {
@@ -1508,13 +1520,25 @@ init_sampler <- function(model, pdata, seed = 0L) {
       }
       init_lp <- log_prob(f, unconstrain_pars(f, p), gradient = TRUE)
       if(is.finite(init_lp) && all(is.finite(attr(init_lp, "gradient")))) {
-        if(try_no > 1L) {
-          message("Needed ",try_no," attempts for generating a valid initial proposal for chain #", chain_id,"!")
+        if(init_lp > best_init_ll) {
+          #message("Better proposal: ",init_lp," > ",best_init_ll)
+          valid_tries <- valid_tries + 1L
+          best_init <- p
+          best_init_ll <- init_lp
+          if(valid_tries >= target_tries) {
+            break
+          }
+        } else {
+          #message("Worse proposal: ",init_lp," ≤ ",best_init_ll)
         }
-        return(p)
       }
     }
-    stop("Could not generate valid proposal after 100 tries!")
+    if(valid_tries == 0L) {
+      stop("Could not generate a single valid initial proposal in ",max_tries," attempt(s)!")
+    } else if(valid_tries < target_tries) {
+      warning("Could not generate a minimum of ",target_tries," valid initial proposal(s) in ", max_tries," attempt(s)!")
+    }
+    best_init
   }
 }
 
