@@ -1595,7 +1595,7 @@ setMethod("sampling", c(object = "stantvamodel"), function(object, data, init = 
   }
   if(backend == "rstan") {
     if(length(pars) == 0 && isFALSE(include)) {
-      f <- callNextMethod(object, pdata, pars = NA, include = TRUE, init = init, seed = seed, ...)
+      f <- callNextMethod(object, pdata, init = init, seed = seed, ...)
     } else {
       f <- callNextMethod(object, pdata, pars = pars, include = include, init = init, seed = seed, ...)
     }
