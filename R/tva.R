@@ -1468,6 +1468,7 @@ write_stantva_model <- function(model, file = stdout()) {
 
 #'StanTVA model class
 #'@slot code The StanTVA code object that was used to compile this model.
+#'@slot initializers Compiled functions for generation of initial samples
 #'@importClassesFrom rstan stanmodel
 #'@export
 setClass("stantvamodel", contains = "stanmodel", slots = c("code" = "stantvacode", "initializers" = "environment"))

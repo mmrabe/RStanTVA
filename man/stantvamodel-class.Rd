@@ -11,5 +11,7 @@ StanTVA model class
 
 \describe{
 \item{\code{code}}{The StanTVA code object that was used to compile this model.}
+
+\item{\code{initializers}}{Compiled functions for generation of initial samples}
 }}
 
