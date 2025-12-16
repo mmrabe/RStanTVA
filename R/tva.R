@@ -655,7 +655,7 @@ stantva_code <- function(
     w_body <- sprintf("vector[%1$d] w = rep_vector(1.0/%1$d.0, %1$d);", locations)
   } else if(w_mode == "regions") {
     if(length(regions) == 0) stop("You must define regions if w_mode = 'regions'!")
-    add_param(name = "r", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = ~lognormal(0,0.2))
+    add_param(name = "r", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector<lower=machine_precision()>[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = ~lognormal(0,0.2))
     w_pars <- "r"
     w_body <- c(
       sprintf("vector[%1$d] w;", locations),
@@ -670,7 +670,7 @@ stantva_code <- function(
   } else if(w_mode == "locations") {
     w_pars <- "w"
     w_body <- NULL
-    add_param(name = "w", type = sprintf("simplex[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype ="vector", dim = locations, prior = ~lognormal(0,1))
+    add_param(name = "w", type = sprintf("simplex[%d]", locations), ctype=sprintf("vector<lower=machine_precision()>[%d]", locations), rtype ="vector", dim = locations, prior = ~lognormal(0,1))
     for(i in seq_along(regions)) {
       #add_code(
       #  "generated quantities",
@@ -943,6 +943,8 @@ stantva_code <- function(
       unlist(lapply(seq_len(nrow(all_params)), function(i) {
         if(all_params$dim[i] == 1) {
           sprintf("vector%2$s[N] %1$s;", all_params$name[i], gsub("^[^<>]*(<.*>)?[^<>]*$","\\1",parameters[[all_params$name[i]]]$type))
+        } else if(grepl("^simplex",parameters[[all_params$name[i]]]$type)) {
+          sprintf("matrix<lower=machine_precision(),upper=1.0-machine_precision()>[N,%2$d] %1$s;", all_params$name[i], all_params$dim[i])
         } else {
           sprintf("matrix%3$s[N,%2$d] %1$s;", all_params$name[i], all_params$dim[i], gsub("^[^<>]*(<.*>)?[^<>]*$","\\1",parameters[[all_params$name[i]]]$type))
         }
@@ -1259,6 +1261,16 @@ stantva_code <- function(
     )
   }
 
+  add_code(
+    "functions",
+    "real halfnormal_lpdf(vector x, real mu, real sigma) {",
+    "\treturn normal_lpdf(x | mu, sigma) + log2();",
+    "}",
+    "real halfnormal_lpdf(real x, real mu, real sigma) {",
+    "\treturn normal_lpdf(x | mu, sigma) + log2();",
+    "}"
+  )
+
 
   add_code(
     "model",
@@ -1490,7 +1502,7 @@ init_sampler <- function(model, pdata, seed = 0L) {
   f <- sampling(as(model,"stanmodel"), pdata, chains = 1L, iter = 1L, refresh = 0L, init = "random", seed = seed, algorithm = "Fixed_param")
   function(chain_id = 1) {
     init_rng <- get_rng(if(seed == 0L) 0L else seed + chain_id)
-    max_tries <- 100L
+    max_tries <- 1000L
     target_tries <- 5L
     valid_tries <- 0L
     best_init <- list()
@@ -1525,7 +1537,7 @@ init_sampler <- function(model, pdata, seed = 0L) {
           initializers <- setdiff(initializers, fn)
         }
       }
-      init_lp <- log_prob(f, unconstrain_pars(f, p), gradient = TRUE)
+      init_lp <- tryCatch(log_prob(f, unconstrain_pars(f, p), gradient = TRUE), error = function(e) Inf)
       if(is.finite(init_lp) && all(is.finite(attr(init_lp, "gradient")))) {
         if(init_lp > best_init_ll) {
           #message("Better proposal: ",init_lp," > ",best_init_ll)
@@ -1680,6 +1692,7 @@ setMethod("logLik", "stantvafit", function(object) {
         we <- grepl(paste0("^(",paste0(p,collapse="|"),")\\["),f@sim$fnames_oi)
         f@sim$fnames_oi <- f@sim$fnames_oi[!we]
         f@par_dims <- f@par_dims[f@model_pars]
+        f@sim$dims_oi <- f@sim$dims_oi[f@model_pars]
         for(i in seq_along(f@sim$samples)) {
           we <- grepl(paste0("^(",paste0(p,collapse="|"),")\\["),names(f@sim$samples[[i]]))
           f@sim$samples[[i]] <- f@sim$samples[[i]][names(f@sim$samples[[i]])[!we]]
