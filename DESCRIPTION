@@ -25,8 +25,7 @@ Imports:
     cli,
     lme4,
     brms,
-    rlang,
-    Rcpp
+    rlang
 Suggests:
     cmdstanr,
     knitr,
