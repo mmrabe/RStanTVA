@@ -28,7 +28,10 @@ Imports:
     rlang,
     Rcpp
 Suggests:
-    cmdstanr
+    cmdstanr,
+    knitr,
+    rmarkdown
 Additional_repositories: https://stan-dev.r-universe.dev
 LazyData: true
 RoxygenNote: 7.3.3
+VignetteBuilder: knitr

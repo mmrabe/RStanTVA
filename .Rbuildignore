@@ -6,3 +6,4 @@
 ^README\.Rmd$
 .github
 ^man/cache/
+_cache/fits
