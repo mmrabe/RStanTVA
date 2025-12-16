@@ -10,7 +10,7 @@ License: GPL (>= 3)
 Encoding: UTF-8
 BugReports: https://github.com/mmrabe/RStanTVA/issues
 URL: https://github.com/mmrabe/RStanTVA
-Date: 2025-05-08
+Date: 2025-12-16
 Depends:
     rstan,
     R (>= 3.6)
@@ -30,7 +30,8 @@ Imports:
 Suggests:
     cmdstanr,
     knitr,
-    rmarkdown
+    rmarkdown,
+    ggplot2
 Additional_repositories: https://stan-dev.r-universe.dev
 LazyData: true
 RoxygenNote: 7.3.3
