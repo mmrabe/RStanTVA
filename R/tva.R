@@ -655,7 +655,7 @@ stantva_code <- function(
     w_body <- sprintf("vector[%1$d] w = rep_vector(1.0/%1$d.0, %1$d);", locations)
   } else if(w_mode == "regions") {
     if(length(regions) == 0) stop("You must define regions if w_mode = 'regions'!")
-    add_param(name = "r", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = ~lognormal(0,0.2))
+    add_param(name = "r", type = sprintf("simplex[%d]", length(regions)), ctype=sprintf("vector<lower=machine_precision()>[%d]", length(regions)), rtype = "vector", dim = length(regions), prior = ~lognormal(0,0.2))
     w_pars <- "r"
     w_body <- c(
       sprintf("vector[%1$d] w;", locations),
@@ -670,7 +670,7 @@ stantva_code <- function(
   } else if(w_mode == "locations") {
     w_pars <- "w"
     w_body <- NULL
-    add_param(name = "w", type = sprintf("simplex[%d]", locations), ctype=sprintf("vector[%d]", locations), rtype ="vector", dim = locations, prior = ~lognormal(0,1))
+    add_param(name = "w", type = sprintf("simplex[%d]", locations), ctype=sprintf("vector<lower=machine_precision()>[%d]", locations), rtype ="vector", dim = locations, prior = ~lognormal(0,1))
     for(i in seq_along(regions)) {
       #add_code(
       #  "generated quantities",
@@ -853,7 +853,7 @@ stantva_code <- function(
   # default parameter-unspecific priors
   default_priors <- prior("gamma(2.0,8.0)", "sd") +
     prior("gamma(2.0,5.0)", "sd", coef = "Intercept") +
-    prior("lkj_corr(0.8)", "cor") +
+    prior("lkj_corr(1.0)", "cor") +
     prior("normal(0.0,5.0)") +
     prior("normal(0.0,10.0)", coef = "Intercept")
 
@@ -920,6 +920,7 @@ stantva_code <- function(
       sprintf("int M_%s = %s;", all_random_params$group, all_random_params$M_var),
       sprintf("array[N_%1$s] int<lower=0> Ntrials_by_%1$s = rep_array(0, N_%1$s);", clean_name(all_random_factors)),
       sprintf("array[N_%1$s,N] int<lower=0> trials_by_%1$s = rep_array(0, N_%1$s, N);", clean_name(all_random_factors)),
+      sprintf("matrix[N_%1$s,N_%1$s-1] Q_%1$s = sum_to_zero_basis(N_%1$s);", clean_name(all_random_factors)),
       if(length(all_random_factors) > 0) "for(i in 1:N) {",
       sprintf("\tNtrials_by_%1$s[%1$s[i]] += 1;", clean_name(all_random_factors)),
       sprintf("\ttrials_by_%1$s[%1$s[i],Ntrials_by_%1$s[%1$s[i]]] = i;", clean_name(all_random_factors)),
@@ -928,15 +929,22 @@ stantva_code <- function(
     add_code(
       "parameters",
       "vector[M] b;",
-      sprintf("corr_matrix[M_%1$s] r_%1$s;", all_random_params$group),
       sprintf("vector<lower=machine_precision()>[M_%1$s] s_%1$s;", all_random_params$group),
-      sprintf("array[N_%2$s] vector[M_%1$s] w_%1$s;", all_random_params$group, all_random_params$factor_txt)
+      sprintf("array[M_%1$s] unit_vector[N_%2$s-1] nw_%1$s;", all_random_params$group, all_random_params$factor_txt)
+    )
+    add_code(
+      "transformed parameters",
+      sprintf("matrix[N_%2$s,M_%1$s] w_%1$s;", all_random_params$group, all_random_params$factor_txt),
+      sprintf("for(i in 1:M_%1$s) w_%1$s[:,i] = (Q_%2$s * nw_%1$s[i]) * sqrt(N_%2$s - 1) * s_%1$s[i];", all_random_params$group, all_random_params$factor_txt),
+      sprintf("matrix[M_%1$s,M_%1$s] r_%1$s = sample_covariance(w_%1$s) ./ tcrossprod(to_matrix(s_%1$s));", all_random_params$group)
     )
     add_code(
       "transformed parameters",
       unlist(lapply(seq_len(nrow(all_params)), function(i) {
         if(all_params$dim[i] == 1) {
           sprintf("vector%2$s[N] %1$s;", all_params$name[i], gsub("^[^<>]*(<.*>)?[^<>]*$","\\1",parameters[[all_params$name[i]]]$type))
+        } else if(grepl("^simplex",parameters[[all_params$name[i]]]$type)) {
+          sprintf("matrix<lower=machine_precision(),upper=1.0-machine_precision()>[N,%2$d] %1$s;", all_params$name[i], all_params$dim[i])
         } else {
           sprintf("matrix%3$s[N,%2$d] %1$s;", all_params$name[i], all_params$dim[i], gsub("^[^<>]*(<.*>)?[^<>]*$","\\1",parameters[[all_params$name[i]]]$type))
         }
@@ -962,9 +970,9 @@ stantva_code <- function(
                      lapply(j, function(i) {
                        k <- match(all_random_effects$param[i], all_params$name)
                        if(all_params$dim[k] == 1L) {
-                         sprintf("\t%1$s[j] += Z_%2$s[j,map_%1$s_%2$s] * w_%2$s[i,map_%1$s_%2$s];", all_random_effects$param[i], all_random_effects$group[i])
+                         sprintf("\t%1$s[j] += Z_%2$s[j,map_%1$s_%2$s] * w_%2$s[i,map_%1$s_%2$s]';", all_random_effects$param[i], all_random_effects$group[i])
                        } else {
-                         sprintf("\t%1$s[j,%3$d] += Z_%2$s[j,map_%1$s_%3$d_%2$s] * w_%2$s[i,map_%1$s_%3$d_%2$s];", all_random_effects$param[i], all_random_effects$group[i], all_random_effects$index[i])
+                         sprintf("\t%1$s[j,%3$d] += Z_%2$s[j,map_%1$s_%3$d_%2$s] * w_%2$s[i,map_%1$s_%3$d_%2$s]';", all_random_effects$param[i], all_random_effects$group[i], all_random_effects$index[i])
                        }
                      })
                    ),
@@ -1091,17 +1099,18 @@ stantva_code <- function(
         eval_prior,
         sprintf("if(M_%s > 1) {", all_random_params$group[i]),
         if(is.null(p_r)) sprintf("\t// no prior for %s random effects correlations", all_random_params$group[i]) else  sprintf("\tr_%1$s ~ %2$s;", all_random_params$group[i], p_r),
-        sprintf("\tw_%1$s ~ multi_normal(mu_w_%1$s, quad_form_diag(r_%1$s, s_%1$s));", all_random_params$group[i]),
-        "} else {",
-        sprintf("\tw_%1$s[,1] ~ normal(0.0, s_%1$s[1]);", all_random_params$group[i]),
+        #sprintf("\tw_%1$s ~ multi_normal(mu_w_%1$s, quad_form(r_%1$s, to_matrix(s_%1$s)));", all_random_params$group[i]),
+        #"} else {",
+        #sprintf("\tw_%1$s[,1] ~ normal(0.0, s_%1$s[1]);", all_random_params$group[i]),
         "}"
       )
 
       global_prior <- c(
         global_prior,
-        sprintf("matrix init_r_%1$s_rng(vector s_%1$s) { return %2$s; }", all_random_params$group[i], add_rng(p_r,pre=sprintf("size(s_%s),",all_random_params$group[i]))),
-        sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { matrix[N_%2$s, size(s_%1$s)] w_%1$s = rep_matrix(0.0, N_%2$s, size(s_%1$s)); for(i in 1:N_%2$s) w_%1$s[i,:] = to_row_vector(multi_normal_rng(rep_vector(0.0, size(s_%1$s)), quad_form_diag(r_%1$s, s_%1$s))); return w_%1$s; }", all_random_params$group[i], all_random_params$factor_txt[i])
+        #sprintf("matrix init_r_%1$s_rng(vector s_%1$s) { return %2$s; }", all_random_params$group[i], add_rng(p_r,pre=sprintf("size(s_%s),",all_random_params$group[i]))),
+        #sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { matrix[N_%2$s, size(s_%1$s)] w_%1$s = rep_matrix(0.0, N_%2$s, size(s_%1$s)); for(i in 1:N_%2$s) w_%1$s[i,:] = to_row_vector(multi_normal_rng(rep_vector(0.0, size(s_%1$s)), quad_form(r_%1$s, to_matrix(s_%1$s)))); return w_%1$s; }", all_random_params$group[i], all_random_params$factor_txt[i])
         #sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { return rep_matrix(0.0, N_%2$s, size(s_%1$s)); }", all_random_params$group[i], all_random_params$factor_txt[i])
+        sprintf("matrix init_nw_%1$s_rng(int N_%2$s, vector s_%1$s) { matrix[size(s_%1$s),N_%2$s-1] ret; for(i in 1:rows(ret)) { for(j in 1:cols(ret)) ret[i,j]=std_normal_rng(); ret[i,:] /= norm2(ret[i,:]); } return ret; }", all_random_params$group[i], all_random_params$factor_txt[i])
       )
 
     }
@@ -1251,6 +1260,16 @@ stantva_code <- function(
       parmap(l_pars)
     )
   }
+
+  add_code(
+    "functions",
+    "real halfnormal_lpdf(vector x, real mu, real sigma) {",
+    "\treturn normal_lpdf(x | mu, sigma) + log2();",
+    "}",
+    "real halfnormal_lpdf(real x, real mu, real sigma) {",
+    "\treturn normal_lpdf(x | mu, sigma) + log2();",
+    "}"
+  )
 
 
   add_code(
@@ -1416,7 +1435,14 @@ stantva_model <- function(..., stan_options = list()) {
   m <- do.call(stan_model, stan_options) %>% as("stantvamodel")
   m@code <- mc
   m@initializers <- new.env(parent = baseenv())
-  expose_stan_functions(stanc(model_code = c("functions {",mc@initializers,"}")), env = m@initializers)
+  expose_stan_functions(stanc(model_code = c(
+    "functions {",
+    "\treal halfnormal_rng(real mu, real sigma) {",
+    "\t\treturn abs(normal_rng(mu, sigma));",
+    "\t}",
+    mc@initializers,
+    "}"
+  )), env = m@initializers)
   m
 }
 
@@ -1442,6 +1468,7 @@ write_stantva_model <- function(model, file = stdout()) {
 
 #'StanTVA model class
 #'@slot code The StanTVA code object that was used to compile this model.
+#'@slot initializers Compiled functions for generation of initial samples
 #'@importClassesFrom rstan stanmodel
 #'@export
 setClass("stantvamodel", contains = "stanmodel", slots = c("code" = "stantvacode", "initializers" = "environment"))
@@ -1473,10 +1500,15 @@ setMethod("show", c(object="stantvamodel"), function(object) {
 })
 
 init_sampler <- function(model, pdata, seed = 0L) {
-  f <- sampling(as(model,"stanmodel"), pdata, chains = 1L, iter = 1L, refresh = 0L, init = "0", seed = seed, algorithm = "Fixed_param")
+  f <- sampling(as(model,"stanmodel"), pdata, chains = 1L, iter = 1L, refresh = 0L, init = "random", seed = seed, algorithm = "Fixed_param")
   function(chain_id = 1) {
     init_rng <- get_rng(if(seed == 0L) 0L else seed + chain_id)
-    for(try_no in 1:100) {
+    max_tries <- 1000L
+    target_tries <- 5L
+    valid_tries <- 0L
+    best_init <- list()
+    best_init_ll <- -Inf
+    for(try_no in seq_len(max_tries)) {
       p <- list()
       initializers <- Filter(function(x) startsWith(x,"init_"), names(model@initializers))
       while(length(initializers) > 0L) {
@@ -1502,19 +1534,31 @@ init_sampler <- function(model, pdata, seed = 0L) {
           }
           if(skipInit) next
           p[[vn]] <- do.call(model@initializers[[fn]], as.list(z))
-          if(grepl("^b$|^[srw]_", vn)) p[[vn]] <- as.array(p[[vn]])
+          if(grepl("^b$|^(s|nw)_", vn)) p[[vn]] <- as.array(p[[vn]])
           initializers <- setdiff(initializers, fn)
         }
       }
-      init_lp <- log_prob(f, unconstrain_pars(f, p), gradient = TRUE)
+      init_lp <- tryCatch(log_prob(f, unconstrain_pars(f, p), gradient = TRUE), error = function(e) Inf)
       if(is.finite(init_lp) && all(is.finite(attr(init_lp, "gradient")))) {
-        if(try_no > 1L) {
-          message("Needed ",try_no," attempts for generating a valid initial proposal for chain #", chain_id,"!")
+        if(init_lp > best_init_ll) {
+          #message("Better proposal: ",init_lp," > ",best_init_ll)
+          valid_tries <- valid_tries + 1L
+          best_init <- p
+          best_init_ll <- init_lp
+          if(valid_tries >= target_tries) {
+            break
+          }
+        } else {
+          #message("Worse proposal: ",init_lp," ≤ ",best_init_ll)
         }
-        return(p)
       }
     }
-    stop("Could not generate valid proposal after 100 tries!")
+    if(valid_tries == 0L) {
+      stop("Could not generate a single valid initial proposal in ",max_tries," attempt(s)!")
+    } else if(valid_tries < target_tries) {
+      warning("Could not generate a minimum of ",target_tries," valid initial proposal(s) in ", max_tries," attempt(s)!")
+    }
+    best_init
   }
 }
 
@@ -1571,7 +1615,7 @@ setMethod("sampling", c(object = "stantvamodel"), function(object, data, init = 
   }
   if(backend == "rstan") {
     if(length(pars) == 0 && isFALSE(include)) {
-      f <- callNextMethod(object, pdata, pars = NA, include = TRUE, init = init, seed = seed, ...)
+      f <- callNextMethod(object, pdata, init = init, seed = seed, ...)
     } else {
       f <- callNextMethod(object, pdata, pars = pars, include = include, init = init, seed = seed, ...)
     }
@@ -1649,6 +1693,7 @@ setMethod("logLik", "stantvafit", function(object) {
         we <- grepl(paste0("^(",paste0(p,collapse="|"),")\\["),f@sim$fnames_oi)
         f@sim$fnames_oi <- f@sim$fnames_oi[!we]
         f@par_dims <- f@par_dims[f@model_pars]
+        f@sim$dims_oi <- f@sim$dims_oi[f@model_pars]
         for(i in seq_along(f@sim$samples)) {
           we <- grepl(paste0("^(",paste0(p,collapse="|"),")\\["),names(f@sim$samples[[i]]))
           f@sim$samples[[i]] <- f@sim$samples[[i]][names(f@sim$samples[[i]])[!we]]
@@ -1665,7 +1710,7 @@ setMethod("logLik", "stantvafit", function(object) {
     substitute(
       {
         p <- if(!is.null(attr(fx@stanmodel@code@df,"formula_lhs"))) attr(fx@stanmodel@code@df,"formula_lhs")[2,] else c()
-        .strippars(fn, p)
+        .strippars(fn, c(p, Filter(function(x) startsWith(x, "nw_"), fx@model_pars)))
       },
       list(fx = as.name(f), fn = as.character(f))
     ),

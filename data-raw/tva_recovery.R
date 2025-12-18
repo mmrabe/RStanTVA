@@ -45,7 +45,6 @@ cor_subj <- diag(length(sd_subj))
 dimnames(cor_subj) <- list(names(sd_subj), names(sd_subj))
 cor_subj["C_Intercept","C_conditionhigh"] <- cor_subj["C_conditionhigh","C_Intercept"] <- -.2
 cor_subj["C_Intercept","alpha_Intercept"] <- cor_subj["alpha_Intercept","C_Intercept"] <- -.3
-cor_subj["mK_Intercept","sK_Intercept"] <- cor_subj["mK_Intercept","sK_Intercept"] <- 0.2
 
 z_subj <- mvrnorm(50, rep(0, length(sd_subj)), cor_subj)
 
