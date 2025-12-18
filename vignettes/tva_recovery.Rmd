@@ -89,6 +89,15 @@ b_{\textrm{logit}(r)}
 `r (tva_recovery_true_params$r_subject * tcrossprod(tva_recovery_true_params$s_subject)) %>% apply(1, paste, collapse = "&") %>% paste(collapse="\\\\")`
 \end{pmatrix}\right)
 $$
+where each individual subject's parameter is the linear combination of intercept $a$ and slope $b$ on dummy-coded condition so that, e.g.
+
+$$
+\log C_\textrm{low} = a_{\log C}
+$$
+
+$$
+\log C_\textrm{high} = a_{\log C} + b_{\log C}
+$$
 
 ## Simulations
 
