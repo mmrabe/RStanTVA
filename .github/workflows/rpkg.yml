@@ -26,14 +26,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: docker://pandoc/core:3.8
+      - name: Set up Pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+        with:
+          pandoc-version: '3.1.11'
       - name: Set up R ${{ matrix.r-version }}
         uses: r-lib/actions/setup-r@f57f1301a053485946083d7a45022b278929a78a
         with:
           r-version: ${{ matrix.r-version }}
       - name: Install dependencies
         run: |
-          install.packages(c("remotes", "rcmdcheck", "dplyr", "readr", "tidyr", "tibble", "cli", "lme4", "brms", "rlang"))
+          install.packages("remotes")
           install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
           remotes::install_deps(dependencies = TRUE)
         shell: Rscript {0}
