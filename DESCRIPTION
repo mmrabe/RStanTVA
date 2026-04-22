@@ -25,7 +25,8 @@ Imports:
     cli,
     lme4,
     brms,
-    rlang
+    rlang,
+    ggplot2
 Suggests:
     cmdstanr,
     knitr,
