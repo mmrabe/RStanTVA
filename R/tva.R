@@ -1265,10 +1265,12 @@ stantva_code <- function(
     "functions",
     "real halfnormal_lpdf(vector x, real mu, real sigma) {",
     "\treturn normal_lpdf(x | mu, sigma) + log2();",
-    "}",
-    "real halfnormal_lpdf(real x, real mu, real sigma) {",
-    "\treturn normal_lpdf(x | mu, sigma) + log2();",
     "}"
+  )
+
+  add_code(
+    "functions",
+    initializers
   )
 
 
@@ -1435,14 +1437,7 @@ stantva_model <- function(..., stan_options = list()) {
   m <- do.call(stan_model, stan_options) %>% as("stantvamodel")
   m@code <- mc
   m@initializers <- new.env(parent = baseenv())
-  expose_stan_functions(stanc(model_code = c(
-    "functions {",
-    "\treal halfnormal_rng(real mu, real sigma) {",
-    "\t\treturn abs(normal_rng(mu, sigma));",
-    "\t}",
-    mc@initializers,
-    "}"
-  )), env = m@initializers)
+  expose_stan_functions(m, env = m@initializers)
   m
 }
 
