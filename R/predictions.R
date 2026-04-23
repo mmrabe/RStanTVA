@@ -229,7 +229,7 @@ tva_plot_score_densities <- function(nS, nD, tva_model, tva_fit, locations = tva
   }))
   ggplot(P_scores) +
     geom_line(aes(x=.data$T,y=.data$y,color=.data$Score,group=.data$Score)) +
-    facet_wrap(~sprintf("%dT%dD",.data$nS,.data$nD)) +
+    facet_wrap(~sprintf("%dT%dD",.data$nS-.data$nD,.data$nD)) +
     labs(x = "Exposure duration", y = "Probability density")
 }
 
@@ -248,7 +248,7 @@ tva_plot_predicted_score <- function(nS, nD, tva_model, tva_fit, locations = tva
   P_scores <- bind_rows(lapply(seq_len(nrow(panels)), function(j) {
     P <- tva_integrate(fun=tva_predict_score,locations=locations,nS=panels$nS[j],nD=panels$nD[j],T=T,tva_model=tva_model,tva_fit=tva_fit)
     bind_cols(panels[j,], T = T, y = as.vector(P))
-  })) %>% mutate(Display = sprintf("%dT%dD",.data$nS,.data$nD))
+  })) %>% mutate(Display = sprintf("%dT%dD",.data$nS-.data$nD,.data$nD))
   ggplot(P_scores) +
     geom_line(aes(x=.data$T,y=.data$y,color=.data$Display,group=.data$Display)) +
     labs(x = "Exposure duration", y = "Expected score")
