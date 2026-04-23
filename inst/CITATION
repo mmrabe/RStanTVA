@@ -1,0 +1,11 @@
+bibentry(
+  bibtype = "Article",
+  title = "Enhancing TVA with Bayesian methods: A tutorial and new insights into computational modeling of visual attention using RStanTVA.",
+  author = c(
+    person(given = "Maximilian M.", family = "Rabe", email = "maximilian.rabe@uni-potsdam.de", comment = c(ORCID = "0000-0002-2556-5644")),
+    person(given = "S\u00f8ren", family = "Kyllingsb\u00e6k", email = "soeren.kyllingsbaek@psy.ku.dk", comment = c(ORCID = "0000-0002-4100-437X"))
+  ),
+  journal = "PsyArXiv",
+  year = "2026",
+  doi ="10.31234/osf.io/9avsy_v1"
+)
