@@ -1263,13 +1263,6 @@ stantva_code <- function(
 
   add_code(
     "functions",
-    "real halfnormal_lpdf(vector x, real mu, real sigma) {",
-    "\treturn normal_lpdf(x | mu, sigma) + log2();",
-    "}"
-  )
-
-  add_code(
-    "functions",
     initializers
   )
 
