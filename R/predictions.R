@@ -68,7 +68,7 @@ tva_score_prob <- function(S = matrix(1L, tva_model@code@config$locations, lengt
       t = T,
       v = lapply(seq_len(nrow(v)), function(i) v[i,]),
       score = score,
-      K_args = tva_fit$par[list("bernoulli" = "K", "free" = sprintf("pK[%d]", tva_model@code@config$locations), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]],
+      K_args = tva_fit$par[list("bernoulli" = "K", "free" = sprintf("pK[%d]", seq_len(tva_model@code@config$locations+1L)), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]],
       t0_args = tva_fit$par[list("constant" = character(0), "gaussian" = c("mu0","sigma0"), "exponential" = "mu0")[[tva_model@code@config$t0_mode]]]
     )
   }))
@@ -94,7 +94,7 @@ tva_simulate_response <- function(S = matrix(1L, tva_model@code@config$locations
     t = T,
     v = lapply(seq_len(nrow(v)), function(i) v[i,]),
     base_rng__ = get_rng(seed),
-    K_args = tva_fit$par[list("bernoulli" = "K", "free" = sprintf("pK[%d]", tva_model@code@config$locations), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]],
+    K_args = tva_fit$par[list("bernoulli" = "K", "free" = sprintf("pK[%d]", seq_len(tva_model@code@config$locations+1L)), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]],
     t0_args = tva_fit$par[list("constant" = character(0), "gaussian" = c("mu0","sigma0"), "exponential" = "mu0")[[tva_model@code@config$t0_mode]]]
   ))
 }
@@ -130,7 +130,7 @@ tva_response_prob <- function(R, S = matrix(1L, tva_model@code@config$locations,
     D = lapply(seq_len(nrow(D)), function(i) D[i,]),
     t = T,
     v = lapply(seq_len(nrow(v)), function(i) v[i,]),
-    K_args = tva_fit$par[list("bernoulli" = "K", "free" = sprintf("pK[%d]", tva_model@code@config$locations), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]],
+    K_args = tva_fit$par[list("bernoulli" = "K", "free" = sprintf("pK[%d]", seq_len(tva_model@code@config$locations+1L)), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]],
     t0_args = tva_fit$par[list("constant" = character(0), "gaussian" = c("mu0","sigma0"), "exponential" = "mu0")[[tva_model@code@config$t0_mode]]]
   )
   if(isTRUE(log_p)) ret else exp(ret)
@@ -197,7 +197,7 @@ tva_item_prob <- function(S = matrix(1L, tva_model@code@config$locations, length
       D = lapply(seq_len(nrow(S)), function(i) as.integer(D[i,] | seq_len(ncol(S)) != item)),
       t = T,
       v = lapply(seq_len(nrow(v)), function(i) v[i,]),
-      K_args = tva_fit$par[list("bernoulli" = "K", "free" = sprintf("pK[%d]", tva_model@code@config$locations), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]],
+      K_args = tva_fit$par[list("bernoulli" = "K", "free" = sprintf("pK[%d]", seq_len(tva_model@code@config$locations+1L)), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]],
       t0_args = tva_fit$par[list("constant" = character(0), "gaussian" = c("mu0","sigma0"), "exponential" = "mu0")[[tva_model@code@config$t0_mode]]]
     )
   }, double(nrow(S)))
