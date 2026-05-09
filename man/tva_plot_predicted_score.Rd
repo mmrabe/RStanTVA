@@ -9,7 +9,7 @@ tva_plot_predicted_score(
   nD,
   tva_model,
   tva_fit,
-  locations = tva_model@code@config$locations,
+  scores = 1:tva_model@code@config$locations,
   xlim = c(0, 200),
   n = 101
 )
@@ -23,7 +23,7 @@ tva_plot_predicted_score(
 
 \item{tva_fit}{Fitted parameters.}
 
-\item{locations}{Number of locations.}
+\item{scores}{Scores to plot.}
 
 \item{xlim}{Range of exposure durations.}
 

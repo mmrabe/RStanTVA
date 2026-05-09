@@ -5,9 +5,8 @@
 \title{Compute TVA processing rates}
 \usage{
 tva_processing_rates(
-  S = matrix(1L, tva_model@code@config$locations, length(T)),
-  D = matrix(0L, tva_model@code@config$locations, length(T)),
-  T,
+  S = matrix(1L, 1L, tva_model@code@config$locations),
+  D = matrix(0L, nrow(S), ncol(S)),
   tva_model,
   tva_fit
 )
@@ -17,11 +16,11 @@ tva_processing_rates(
 
 \item{D}{Integer matrix indicating distractor presence.}
 
-\item{T}{Numeric vector of exposure durations.}
-
 \item{tva_model}{TVA model object.}
 
 \item{tva_fit}{Fitted TVA model parameters.}
+
+\item{T}{Numeric vector of exposure durations.}
 }
 \value{
 A matrix of processing rates.

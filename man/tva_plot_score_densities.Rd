@@ -9,8 +9,7 @@ tva_plot_score_densities(
   nD,
   tva_model,
   tva_fit,
-  locations = tva_model@code@config$locations,
-  scores = 0:locations,
+  scores = 0:tva_model@code@config$locations,
   xlim = c(0, 200),
   n = 101
 )
@@ -24,13 +23,13 @@ tva_plot_score_densities(
 
 \item{tva_fit}{Fitted parameters.}
 
-\item{locations}{Number of locations.}
-
 \item{scores}{Scores to plot.}
 
 \item{xlim}{Range of exposure durations.}
 
 \item{n}{Number of grid points.}
+
+\item{locations}{Number of locations.}
 }
 \value{
 A ggplot object.

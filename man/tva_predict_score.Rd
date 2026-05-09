@@ -8,6 +8,7 @@ tva_predict_score(
   S = matrix(1L, tva_model@code@config$locations, length(T)),
   D = matrix(0L, tva_model@code@config$locations, length(T)),
   T,
+  scores = 1:tva_model@code@config$locations,
   tva_model,
   tva_fit
 )
