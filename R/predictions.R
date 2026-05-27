@@ -44,7 +44,7 @@ tva_processing_rates <- function(S = matrix(1L, 1L, tva_model@code@config$locati
 #'
 #' @return Numeric vector of expected scores.
 #' @export
-tva_predict_score <- function(S = matrix(1L, tva_model@code@config$locations, length(T)), D = matrix(0L, tva_model@code@config$locations, length(T)), T, tva_model, tva_fit, scores = 1:tva_model@code@config$locations) {
+tva_predict_score <- function(S = matrix(1L, length(T), tva_model@code@config$locations), D = matrix(0L, length(T), tva_model@code@config$locations), T, tva_model, tva_fit, scores = 1:tva_model@code@config$locations) {
   as.vector(tva_score_prob(S,D,T,tva_model,tva_fit,scores,FALSE) %*% scores)
 }
 
@@ -58,7 +58,7 @@ tva_predict_score <- function(S = matrix(1L, tva_model@code@config$locations, le
 #'
 #' @return Matrix of probabilities (or log-probabilities).
 #' @export
-tva_score_prob <- function(S = matrix(1L, tva_model@code@config$locations, length(T)), D = matrix(0L, tva_model@code@config$locations, length(T)), T, tva_model, tva_fit, score = 0:ncol(S), log_p = FALSE) {
+tva_score_prob <- function(S = matrix(1L, length(T), tva_model@code@config$locations), D = matrix(0L, length(T), tva_model@code@config$locations), T, tva_model, tva_fit, score = 0:ncol(S), log_p = FALSE) {
   ret <- do.call(cbind, lapply(score, function(score) {
     pred_score <- Vectorize(tva_model@initializers$tva_pr_score_log, c("S","D","t","v"))
     v <- tva_processing_rates(S, D, tva_model, tva_fit)
@@ -85,7 +85,7 @@ tva_score_prob <- function(S = matrix(1L, tva_model@code@config$locations, lengt
 #'
 #' @return Matrix of simulated responses.
 #' @export
-tva_simulate_response <- function(S = matrix(1L, tva_model@code@config$locations, length(T)), D = matrix(0L, tva_model@code@config$locations, length(T)), T, tva_model, tva_fit, seed = sample.int(.Machine$integer.max, 1)) {
+tva_simulate_response <- function(S = matrix(1L, length(T), tva_model@code@config$locations), D = matrix(0L, length(T), tva_model@code@config$locations), T, tva_model, tva_fit, seed = sample.int(.Machine$integer.max, 1)) {
   sim_trial <- Vectorize(tva_model@initializers$tva_pr_rng, c("S","D","t","v"))
   v <- tva_processing_rates(S, D, tva_model, tva_fit)
   t(sim_trial(
@@ -107,7 +107,7 @@ tva_simulate_response <- function(S = matrix(1L, tva_model@code@config$locations
 #'
 #' @return Numeric vector of simulated scores.
 #' @export
-tva_simulate_score <- function(S = matrix(1L, tva_model@code@config$locations, length(T)), D = matrix(0L, tva_model@code@config$locations, length(T)), T, tva_model, tva_fit, seed = sample.int(.Machine$integer.max, 1)) {
+tva_simulate_score <- function(S = matrix(1L, length(T), tva_model@code@config$locations), D = matrix(0L, length(T), tva_model@code@config$locations), T, tva_model, tva_fit, seed = sample.int(.Machine$integer.max, 1)) {
   rowSums(tva_simulate_response(S,D,T,tva_model,tva_fit,seed))
 }
 
@@ -121,7 +121,7 @@ tva_simulate_score <- function(S = matrix(1L, tva_model@code@config$locations, l
 #'
 #' @return Numeric vector of probabilities.
 #' @export
-tva_response_prob <- function(R, S = matrix(1L, tva_model@code@config$locations, length(T)), D = matrix(0L, tva_model@code@config$locations, length(T)), T, tva_model, tva_fit, log_p = FALSE) {
+tva_response_prob <- function(R, S = matrix(1L, length(T), tva_model@code@config$locations), D = matrix(0L, length(T), tva_model@code@config$locations), T, tva_model, tva_fit, log_p = FALSE) {
   prob_trial <- Vectorize(tva_model@initializers$tva_pr_log, c("S","D","R","t","v"))
   v <- tva_processing_rates(S, D, tva_model, tva_fit)
   ret <- prob_trial(
@@ -187,7 +187,7 @@ tva_integrate <- function(fun, locations = max(nS), nS, nD, T, ...) t(Vectorize(
 #'
 #' @return Matrix of probabilities.
 #' @export
-tva_item_prob <- function(S = matrix(1L, tva_model@code@config$locations, length(T)), D = matrix(0L, tva_model@code@config$locations, length(T)), T, tva_model, tva_fit, item = seq_len(ncol(S)), log_p = FALSE) {
+tva_item_prob <- function(S = matrix(1L, length(T), tva_model@code@config$locations), D = matrix(0L, length(T), tva_model@code@config$locations), T, tva_model, tva_fit, item = seq_len(ncol(S)), log_p = FALSE) {
   prob_trial <- Vectorize(tva_model@initializers$tva_pr_log, c("S","D","R","t","v"))
   v <- tva_processing_rates(S, D, tva_model, tva_fit)
   ret <- vapply(item, function(item) {
