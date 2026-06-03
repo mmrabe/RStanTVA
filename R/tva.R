@@ -1224,7 +1224,7 @@ stantva_code <- function(
     } else {
       p <- get_prior(priors, "global", dpar=name)
       eval_prior <- c(eval_prior, if(is.null(p)) sprintf("// no prior for global %s", name) else if(grepl("^simplex\\b", parameters[[name]]$type)) sprintf("%1$s[:%2$d]/%1$s[%3$d] ~ %4$s;", name, parameters[[name]]$dim-1, parameters[[name]]$dim, p) else sprintf("%s ~ %s;", name, p))
-      if(!is.null(p)) global_prior <- c(global_prior, if(grepl("^simplex\\b", parameters[[name]]$type)) sprintf("vector init_%1$s_rng() { vector[%3$d] %1$s; %1$s[%3$d] = 1.0; for(i in 1:%2$d) %1$s[i] = %4$s; return %1$s ./ sum(%1$s); }", name, parameters[[name]]$dim-1, parameters[[name]]$dim, add_rng(p)) else sprintf("real init_%1$s_rng() {return %2$s;}", name, add_rng(p)))
+      if(!is.null(p)) global_prior <- c(global_prior, if(grepl("^simplex\\b", parameters[[name]]$type)) sprintf("vector init_%1$s_rng() { vector[%3$d] %1$s; %1$s[%3$d] = 1.0; for(i in 1:%2$d) %1$s[i] = %4$s; return %1$s ./ sum(%1$s); }", name, parameters[[name]]$dim-1, parameters[[name]]$dim, add_rng(p)) else if(grepl("^vector\\b", parameters[[name]]$type) || (!is.null(parameters[[name]]$dim) && parameters[[name]]$dim > 1L)) sprintf("vector init_%1$s_rng() { vector[%2$d] %1$s; for(i in 1:%2$d) %1$s[i] = %3$s; return %1$s; }", name, parameters[[name]]$dim, add_rng(p)) else sprintf("real init_%1$s_rng() {return %2$s;}", name, add_rng(p)))
     }
   }
 
