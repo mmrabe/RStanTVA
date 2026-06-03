@@ -7,7 +7,8 @@
 #'@importFrom cli col_cyan col_magenta col_grey col_blue ansi_strwrap style_underline style_bold
 #'@importFrom tibble tibble
 #'@importFrom utils citation str combn packageName packageVersion
-#'@importFrom lme4 findbars subbars fixef ranef nobars
+#'@importFrom lme4 fixef ranef
+#'@importFrom reformulas findbars subbars nobars
 #'@importFrom brms prior set_prior
 #'@importFrom rlang .data .env
 #'

@@ -26,7 +26,8 @@ Imports:
     lme4,
     brms,
     rlang,
-    ggplot2
+    ggplot2,
+    reformulas
 Suggests:
     cmdstanr,
     knitr,
