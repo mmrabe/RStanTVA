@@ -6,8 +6,8 @@
 \usage{
 tva_response_prob(
   R,
-  S = matrix(1L, tva_model@code@config$locations, length(T)),
-  D = matrix(0L, tva_model@code@config$locations, length(T)),
+  S = matrix(1L, length(T), tva_model@code@config$locations),
+  D = matrix(0L, length(T), tva_model@code@config$locations),
   T,
   tva_model,
   tva_fit,

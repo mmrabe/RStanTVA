@@ -5,12 +5,12 @@
 \title{Predict expected score}
 \usage{
 tva_predict_score(
-  S = matrix(1L, tva_model@code@config$locations, length(T)),
-  D = matrix(0L, tva_model@code@config$locations, length(T)),
+  S = matrix(1L, length(T), tva_model@code@config$locations),
+  D = matrix(0L, length(T), tva_model@code@config$locations),
   T,
-  scores = 1:tva_model@code@config$locations,
   tva_model,
-  tva_fit
+  tva_fit,
+  scores = 1:tva_model@code@config$locations
 )
 }
 \arguments{
