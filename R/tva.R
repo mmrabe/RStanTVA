@@ -1889,24 +1889,35 @@ coef.stanfit <- function(object) {
 #'@export
 setMethod("coef", "stantvafit", coef.stanfit)
 
-predict.stantvafit <- function(object, newdata, variables = names(object@stanmodel@code@df)) {
-  newdata <- if(missing(newdata)) object@data else prepare_data(newdata, object@stanmodel, FALSE, attr(object@data, "contrasts"))
-  fx <- bind_rows(lapply(object@stanmodel@code@config$formula, parse_formula))
+predict.stantvafit <- function(object, newdata, variables = names(model@code@df), model = object@stanmodel) {
+  newdata <- if(missing(newdata)) object@data else prepare_data(newdata, model, FALSE, if(inherits(object, "stanfit") && !is.null(attr(object@data, "contrasts"))) attr(object@data, "contrasts") else list())
+  fx <- bind_rows(lapply(model@code@config$formula, parse_formula))
+  n_samples <- if(inherits(object, "stanfit")) (object@sim$iter-object@sim$warmup)*object@sim$chains else 1L
   sapply(variables, function(parname) {
     which_formula <- match(parname, fx$param)
     if(is.na(which_formula)) {
-      p <- extract(as(object,"stanfit"), parname)[[1]]
-      replicate(newdata$N, p)
+      if(inherits(object,"stanfit")) {
+        p <- extract(as(object,"stanfit"), parname)[[1]]
+      } else {
+        p <- t(if(model@code@dim[parname] > 1L) object$par[sprintf("%s[%d]", parname, seq_len(model@code@dim[parname]))] else object$par[parname])
+      }
+      p[rep(1L,newdata$N),,drop=FALSE]
     } else {
       bt <- fx$inverse_link[[which_formula]]
       rfs <- fx$random[[which_formula]]
-      par_dim <- object@stanmodel@code@dim[parname]
-      par_df <- object@stanmodel@code@df[parname]
-      ps <- c("b", if(!is.null(rfs$group)) if(par_dim > 1) paste0("w_",rep(rfs$group, each = par_df),"_",seq_len(par_df)) else paste0("w_",rfs$group))
-      p <- extract(as(object,"stanfit"), ps)
+      par_dim <- model@code@dim[parname]
+      par_df <- model@code@df[parname]
+      if(inherits(object, "stanfit")) {
+        ps <- c("b", if(!is.null(rfs$group)) if(par_dim > 1) paste0("w_",rep(rfs$group, each = par_df),"_",seq_len(par_df)) else paste0("w_",rfs$group))
+        p <- extract(as(object,"stanfit"), ps)
+      } else {
+        m <- newdata[[paste0("map_",parname)]]
+        p <- list(b = matrix(NA_real_, 1, ncol(newdata$X)))
+        p$b[,m] <- object$par[paste0(parname,"_",colnames(newdata$X)[m])]
+      }
       r <- vapply(seq_len(par_dim), function(i) {
         m <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i) else paste0("map_",parname)]]
-        if(i > par_df) return(matrix(1, (object@sim$iter-object@sim$warmup)*object@sim$chains, newdata$N))
+        if(i > par_df) return(matrix(1, n_samples, newdata$N))
         y <- tcrossprod(newdata$X[,m,drop=FALSE], p$b[,m,drop=FALSE])
         for(k in seq_len(nrow(rfs))) {
           mrf <- newdata[[if(par_dim > 1) paste0("map_",parname,"_",i,"_",rfs$group[k],"_",i) else paste0("map_",parname,"_",rfs$group[k])]]
@@ -1925,7 +1936,8 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
           }
         }
         t(fx$inverse_link[[which_formula]](y))
-      }, matrix(NA_real_, (object@sim$iter-object@sim$warmup)*object@sim$chains, newdata$N))
+      }, matrix(NA_real_, n_samples, newdata$N))
+      r <- array(r, c(n_samples, newdata$N, par_dim))
       if(par_dim > 1L && par_dim > par_df) {
         rs <- as.matrix(r[,,1])
         for(i in seq_len(par_dim)[-1]) {
@@ -1935,7 +1947,7 @@ predict.stantvafit <- function(object, newdata, variables = names(object@stanmod
           r[,,i] <- r[,,i] / rs
         }
       }
-      if(object@stanmodel@code@dim[parname] > 1) aperm(r,c(1,3,2)) else r[,,1]
+      if(model@code@dim[parname] > 1) aperm(r,c(1,3,2)) else r[,,1]
     }
   }, simplify = FALSE)
 }
