@@ -4,7 +4,12 @@
 \alias{predict,stantvafit-method}
 \title{Predict parameter values}
 \usage{
-\S4method{predict}{stantvafit}(object, newdata, variables = names(object@stanmodel@code@df))
+\S4method{predict}{stantvafit}(
+  object,
+  newdata,
+  variables = names(model@code@df),
+  model = object@stanmodel
+)
 }
 \arguments{
 \item{object}{The StanTVA fit object.}

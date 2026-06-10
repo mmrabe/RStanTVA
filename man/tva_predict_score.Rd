@@ -5,21 +5,13 @@
 \title{Predict expected score}
 \usage{
 tva_predict_score(
-  S = matrix(1L, length(T), tva_model@code@config$locations),
-  D = matrix(0L, length(T), tva_model@code@config$locations),
-  T,
+  tva_data,
   tva_model,
   tva_fit,
   scores = 1:tva_model@code@config$locations
 )
 }
 \arguments{
-\item{S}{Integer matrix indicating stimulus presence.}
-
-\item{D}{Integer matrix indicating distractor presence.}
-
-\item{T}{Numeric vector of exposure durations.}
-
 \item{tva_model}{TVA model object.}
 
 \item{tva_fit}{Fitted TVA model parameters.}

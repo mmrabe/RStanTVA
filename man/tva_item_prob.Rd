@@ -5,22 +5,14 @@
 \title{Compute item-level probabilities}
 \usage{
 tva_item_prob(
-  S = matrix(1L, length(T), tva_model@code@config$locations),
-  D = matrix(0L, length(T), tva_model@code@config$locations),
-  T,
+  tva_data,
   tva_model,
   tva_fit,
-  item = seq_len(ncol(S)),
+  item = seq_len(ncol(tva_data$S)),
   log_p = FALSE
 )
 }
 \arguments{
-\item{S}{Integer matrix indicating stimulus presence.}
-
-\item{D}{Integer matrix indicating distractor presence.}
-
-\item{T}{Numeric vector of exposure durations.}
-
 \item{tva_model}{TVA model object.}
 
 \item{tva_fit}{Fitted TVA model parameters.}

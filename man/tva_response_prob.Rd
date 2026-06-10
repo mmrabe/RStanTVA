@@ -4,30 +4,16 @@
 \alias{tva_response_prob}
 \title{Compute response probability}
 \usage{
-tva_response_prob(
-  R,
-  S = matrix(1L, length(T), tva_model@code@config$locations),
-  D = matrix(0L, length(T), tva_model@code@config$locations),
-  T,
-  tva_model,
-  tva_fit,
-  log_p = FALSE
-)
+tva_response_prob(tva_data, tva_model, tva_fit, log_p = FALSE)
 }
 \arguments{
-\item{R}{Integer matrix of responses.}
-
-\item{S}{Integer matrix indicating stimulus presence.}
-
-\item{D}{Integer matrix indicating distractor presence.}
-
-\item{T}{Numeric vector of exposure durations.}
-
 \item{tva_model}{TVA model object.}
 
 \item{tva_fit}{Fitted TVA model parameters.}
 
 \item{log_p}{Logical; return log-probabilities if TRUE.}
+
+\item{R}{Integer matrix of responses.}
 }
 \value{
 Numeric vector of probabilities.
