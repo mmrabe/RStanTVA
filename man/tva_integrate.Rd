@@ -4,20 +4,20 @@
 \alias{tva_integrate}
 \title{Integrate TVA function over configurations}
 \usage{
-tva_integrate(fun, locations = max(nS), nS, nD, T, ...)
+tva_integrate(fun, locations = max(conditions$nS), conditions, T, ...)
 }
 \arguments{
 \item{fun}{Function to evaluate.}
 
 \item{locations}{Number of locations.}
 
-\item{nS}{Number of stimuli.}
-
-\item{nD}{Number of distractors.}
-
 \item{T}{Exposure durations.}
 
 \item{...}{Additional arguments passed to \code{fun}.}
+
+\item{nS}{Number of stimuli.}
+
+\item{nD}{Number of distractors.}
 }
 \value{
 Numeric vector or matrix of averaged values.

@@ -5,8 +5,7 @@
 \title{Plot score densities}
 \usage{
 tva_plot_score_densities(
-  nS,
-  nD,
+  panels,
   tva_model,
   tva_fit,
   scores = 0:tva_model@code@config$locations,
@@ -15,10 +14,6 @@ tva_plot_score_densities(
 )
 }
 \arguments{
-\item{nS}{Number of stimuli.}
-
-\item{nD}{Number of distractors.}
-
 \item{tva_model}{TVA model.}
 
 \item{tva_fit}{Fitted parameters.}
@@ -28,6 +23,10 @@ tva_plot_score_densities(
 \item{xlim}{Range of exposure durations.}
 
 \item{n}{Number of grid points.}
+
+\item{nS}{Number of stimuli.}
+
+\item{nD}{Number of distractors.}
 
 \item{locations}{Number of locations.}
 }

@@ -5,8 +5,7 @@
 \title{Plot expected scores}
 \usage{
 tva_plot_predicted_score(
-  nS,
-  nD,
+  panels,
   tva_model,
   tva_fit,
   scores = 1:tva_model@code@config$locations,
@@ -15,10 +14,6 @@ tva_plot_predicted_score(
 )
 }
 \arguments{
-\item{nS}{Number of stimuli.}
-
-\item{nD}{Number of distractors.}
-
 \item{tva_model}{TVA model.}
 
 \item{tva_fit}{Fitted parameters.}

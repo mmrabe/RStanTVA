@@ -70,7 +70,7 @@ tva_score_prob <- function(tva_data, tva_model, tva_fit, score = 0:ncol(tva_data
       t = if(tva_model@code@config$t0_mode == "constant") tva_data$T - pars_by_trial$t0 else tva_data$T,
       v = .to_list_of_row_vectors(v),
       score = score,
-      K_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("bernoulli" = "K", "free" = sprintf("pK[%d]", seq_len(tva_model@code@config$locations+1L)), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]])),
+      K_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("bernoulli" = "K", "free" = "pK", "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]])),
       t0_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("constant" = "t0", "gaussian" = c("mu0","sigma0"), "exponential" = "mu0")[[tva_model@code@config$t0_mode]]]))
     )
   }))
@@ -97,7 +97,7 @@ tva_simulate_response <- function(tva_data, tva_model, tva_fit, seed = sample.in
     t = if(tva_model@code@config$t0_mode == "constant") tva_data$T - pars_by_trial$t0 else tva_data$T,
     v = .to_list_of_row_vectors(v),
     base_rng__ = get_rng(seed),
-    K_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("bernoulli" = "K", "free" = sprintf("pK[%d]", seq_len(tva_model@code@config$locations+1L)), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]])),
+    K_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("bernoulli" = "K", "free" = "pK", "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]])),
     t0_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("constant" = "t0", "gaussian" = c("mu0","sigma0"), "exponential" = "mu0")[[tva_model@code@config$t0_mode]]]))
   ))
 }
@@ -134,7 +134,7 @@ tva_response_prob <- function(tva_data, tva_model, tva_fit, log_p = FALSE) {
     D = .to_list_of_row_vectors(tva_data$D),
     t = if(tva_model@code@config$t0_mode == "constant") tva_data$T - pars_by_trial$t0 else tva_data$T,
     v = lapply(seq_len(nrow(v)), function(i) v[i,]),
-    K_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("bernoulli" = "K", "free" = sprintf("pK[%d]", seq_len(tva_model@code@config$locations+1L)), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]])),
+    K_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("bernoulli" = "K", "free" = "pK", "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]])),
     t0_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("constant" = "t0", "gaussian" = c("mu0","sigma0"), "exponential" = "mu0")[[tva_model@code@config$t0_mode]]]))
   )
   if(isTRUE(log_p)) ret else exp(ret)
@@ -174,11 +174,12 @@ tva_generate_matrices <- function(locations, nS, nD) {
 #'
 #' @return Numeric vector or matrix of averaged values.
 #' @export
-tva_integrate <- function(fun, locations = max(nS), nS, nD, T, ...) t(Vectorize(function(fun, locations, nS, nD, T, ...) {
-  M <- tva_generate_matrices(locations, nS, nD)
-  Y <- fun(tva_data = tibble(S = M$S, D = M$D, T = T), ...)
+tva_integrate <- function(fun, locations = max(conditions$nS), conditions, T, ...) t(Vectorize(function(fun, locations, condition, T, ...) {
+  M <- tva_generate_matrices(locations, condition$nS, condition$nD)
+  #str(S = M$S, D = M$D, T = T, condition)
+  Y <- fun(tva_data = tibble(S = M$S, D = M$D, T = T, as_tibble(condition)), ...)
   if(is.matrix(Y)) colMeans(Y) else mean(Y)
-}, c("nS","nD","T"))(fun, locations, nS, nD, T, ...))
+}, c("condition","T"))(fun, locations, lapply(seq_len(nrow(conditions)), function(i) as.list(conditions[i,])), T, ...))
 
 
 #' Compute item-level probabilities
@@ -202,7 +203,7 @@ tva_item_prob <- function(tva_data, tva_model, tva_fit, item = seq_len(ncol(tva_
       D = .to_list_of_row_vectors(tva_data$D),
       t = if("t0" %in% names(tva_fit$par)) tva_data$T - pars_by_trial$t0 else tva_data$T,
       v = .to_list_of_row_vectors(v),
-      K_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("bernoulli" = "K", "free" = sprintf("pK[%d]", seq_len(tva_model@code@config$locations+1L)), "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]])),
+      K_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("bernoulli" = "K", "free" = "pK", "betabinomial" = c("aK","bK"), "binomial" = "pK", "hypergeometric" = c("gK","bK"), "probit" = c("mK","sK"))[[tva_model@code@config$K_mode]]])),
       t0_args = .to_list_of_row_vectors(bind_cols(pars_by_trial[list("constant" = "t0", "gaussian" = c("mu0","sigma0"), "exponential" = "mu0")[[tva_model@code@config$t0_mode]]]))
     )
   }, double(nrow(tva_data)))
@@ -226,11 +227,10 @@ tva_item_prob <- function(tva_data, tva_model, tva_fit, item = seq_len(ncol(tva_
 #'
 #' @return A ggplot object.
 #' @export
-tva_plot_score_densities <- function(nS, nD, tva_model, tva_fit, scores = 0:tva_model@code@config$locations, xlim = c(0,200), n = 101) {
+tva_plot_score_densities <- function(panels, tva_model, tva_fit, scores = 0:tva_model@code@config$locations, xlim = c(0,200), n = 101) {
   T <- seq(xlim[1], xlim[2], length.out = n)
-  panels <- tibble(nS, nD)
   P_scores <- bind_rows(lapply(seq_len(nrow(panels)), function(j) {
-    P <- tva_integrate(fun=tva_score_prob,locations=tva_model@code@config$locations,nS=panels$nS[j],nD=panels$nD[j],T=T,tva_model=tva_model,tva_fit=tva_fit,score=scores)
+    P <- tva_integrate(fun=tva_score_prob,locations=tva_model@code@config$locations,conditions=panels[j,],T=T,tva_model=tva_model,tva_fit=tva_fit,score=scores)
     bind_cols(panels[j,], T = rep(T,length(scores)), Score = ordered(rep(scores, each=length(T))), y = as.vector(P))
   }))
   ggplot(P_scores) +
@@ -248,11 +248,10 @@ tva_plot_score_densities <- function(nS, nD, tva_model, tva_fit, scores = 0:tva_
 #'
 #' @return A ggplot object.
 #' @export
-tva_plot_predicted_score <- function(nS, nD, tva_model, tva_fit, scores = 1:tva_model@code@config$locations, xlim = c(0,200), n = 101) {
+tva_plot_predicted_score <- function(panels, tva_model, tva_fit, scores = 1:tva_model@code@config$locations, xlim = c(0,200), n = 101) {
   T <- seq(xlim[1], xlim[2], length.out = n)
-  panels <- tibble(nS, nD)
   P_scores <- bind_rows(lapply(seq_len(nrow(panels)), function(j) {
-    P <- tva_integrate(fun=tva_predict_score,locations=tva_model@code@config$locations,scores=scores,nS=panels$nS[j],nD=panels$nD[j],T=T,tva_model=tva_model,tva_fit=tva_fit)
+    P <- tva_integrate(fun=tva_predict_score,locations=tva_model@code@config$locations,scores=scores,conditions=panels[j,],T=T,tva_model=tva_model,tva_fit=tva_fit)
     bind_cols(panels[j,], T = T, y = as.vector(P))
   })) %>% mutate(Display = sprintf("%dT%dD",.data$nS-.data$nD,.data$nD))
   ggplot(P_scores) +
