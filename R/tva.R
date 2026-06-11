@@ -86,14 +86,14 @@ stantva_path <- function() {
 #' data
 #' }
 #'@export
-read_tva_data <- function(file, set = LETTERS, ...) {
+read_tva_data <- function(file, set = LETTERS, ..., ignore_reported_distractors = TRUE) {
   if(inherits(file, "connection")) f <- file
   else f <- base::file(file, "rb")
   n <- as.integer(readLines(f, n = 1))
   dat <- read_table(f, col_names = c("condition", "exposure", "targets", "distractors", "report"), col_types = c("inccc"), n_max = n, na = character(), ...)
   if(n != nrow(dat)) warning("Expected ",n," trials but only read ",nrow(dat)," lines!")
   close(f)
-  dat %>% mutate(
+  ret <- dat %>% mutate(
     across(c(.data$targets, .data$distractors), ~do.call(rbind, strsplit(.x, "", TRUE) %>% lapply(function(x) if_else(x=="0",NA_character_,x)))),
     report = strsplit(if_else(.data$report == "-", "", .data$report), "", TRUE),
     S = (!is.na(.data$targets) | !is.na(.data$distractors))+0L,
@@ -103,6 +103,8 @@ read_tva_data <- function(file, set = LETTERS, ...) {
     E = vapply(seq_len(n()), function(i) sum(!.data$report[[i]] %in% .data$items[i,]), integer(1)),
     I = length(set)
   ) %>% select(.data$condition, .data$items, .data$report, .data$S, .data$D, T = .data$exposure, .data$R, .data$E, .data$I)
+  if(isTRUE(ignore_reported_distractors)) ret$R <- (ret$R & !ret$D) + 0L
+  ret
 }
 
 #' @title Write TVA data

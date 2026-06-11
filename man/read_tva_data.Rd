@@ -4,7 +4,7 @@
 \alias{read_tva_data}
 \title{Read TVA data}
 \usage{
-read_tva_data(file, set = LETTERS, ...)
+read_tva_data(file, set = LETTERS, ..., ignore_reported_distractors = TRUE)
 }
 \arguments{
 \item{file}{The file name.}
