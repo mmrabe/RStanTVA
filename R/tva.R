@@ -1997,8 +1997,12 @@ setMethod("fitted", "stantvafit", fitted.stantvafit)
 tva_report <- function(data) {
   data %>% mutate(
     score = as.integer(if(is.null(.data$D)) rowSums(.data$R & .data$S) else rowSums(.data$R & .data$S & !.data$D)),
-    error_rate = rowMeans(.data$S & (!.data$R & !.data$D | .data$D & .data$R)),
-    n_items = as.integer(rowSums(.data$S == 1L)),
+    true_positives = if(is.null(.data$D)) rowSums(.data$R) else rowSums(.data$R & !.data$D),
+    false_positives = vapply(seq_len(n()), function(i) sum(!.data$report[[i]] %in% .data$items[i,]), integer(1)),
+    true_negatives = if(is.null(.data$D)) 0L else rowSums(!.data$R & .data$D),
+    false_negatives = if(is.null(.data$D)) rowSums(!.data$R) else rowSums(!.data$R & !.data$D),
+    error_rate = (true_positives + true_negatives) / (true_positives + true_negatives + false_positives + false_negatives),
+    n_items = rowSums(.data$S),
     n_distractors = if(is.null(.data$D)) integer(n()) else as.integer(rowSums(.data$D))
   ) %>% mutate(n_targets = .data$n_items - .data$n_distractors)
 }
