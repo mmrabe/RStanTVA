@@ -7,6 +7,8 @@
 tva_response_prob(tva_data, tva_model, tva_fit, log_p = FALSE)
 }
 \arguments{
+\item{tva_data}{TVA data for which to calculate the processing rates.}
+
 \item{tva_model}{TVA model object.}
 
 \item{tva_fit}{Fitted TVA model parameters.}
