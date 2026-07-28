@@ -1758,7 +1758,7 @@ read_stantva_fit <- function(files) {
 #' @examples
 #' \dontrun{write_stantva_fit(fit, "fit.rds")}
 #' @export
-write_stantva_fit <- function(fit, file, ...) if(inherits(fit, "stantvafit")) saveRDS(fit, file, ...) else stop("`fit` must be a `stantvafit` object!")
+write_stantva_fit <- function(fit, file, ...) if(inherits(fit, "stantvafit")||is.list(fit)) saveRDS(object = fit, file = file, ...) else stop("`fit` must be a list or a `stantvafit` object!")
 
 
 alias.stantvafit <- function(object) {
