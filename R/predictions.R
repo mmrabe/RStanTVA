@@ -9,9 +9,7 @@ NULL
 #' Computes processing rates \code{v} for given stimulus (\code{S}), distractor (\code{D}),
 #' and exposure durations (\code{T}) using a fitted TVA model.
 #'
-#' @param S Integer matrix indicating stimulus presence.
-#' @param D Integer matrix indicating distractor presence.
-#' @param T Numeric vector of exposure durations.
+#' @param tva_data TVA data for which to calculate the processing rates.
 #' @param tva_model TVA model object.
 #' @param tva_fit Fitted TVA model parameters.
 #'
@@ -45,6 +43,50 @@ tva_processing_rates <- function(tva_data, tva_model, tva_fit) {
 #' @export
 tva_predict_score <- function(tva_data, tva_model, tva_fit, scores = 1:tva_model@code@config$locations) {
   as.vector(tva_score_prob(tva_data,tva_model,tva_fit,scores,FALSE) %*% scores)
+}
+
+#' Predict expected score
+#'
+#' Compute the expected score for all combinations of \code{tva_data} and \code{Tlist}.
+#'
+#' @param Tlist A list of lists of exposure durations
+#' @inheritParams tva_processing_rates
+#'
+#' @return Predicted scores as a data frame
+#'
+#' @export
+tva_predict_score_by_list <- function(Tlist, tva_data, tva_model, tva_fit) {
+
+  # Make a data frame with all the predicted combinations of experimental conditions and theoretical exposure durations
+  tva_data %>%
+    distinct(condition,is_masked,S,D) %>%
+    mutate(
+      nS = rowSums(S),   # Number of stimuli
+      nD = rowSums(D),   # Number of distractors
+      sS = apply(S, 1, paste0, collapse=""),   # String with location of stimuli (1 = present, 0 = absent)
+      sD = apply(D, 1, paste0, collapse=""),   # String with location of distractors (1 = present, 0 = absent)
+      Display = sprintf("%dT%dD", nS-nD, nD)  # Label "xTyD" where where x is the number of targets and y is the number of distractors
+    ) %>%
+    inner_join(tibble(condition = seq_along(Tlist), T = Tlist) %>% unnest(T), by = join_by(condition)) %>% unnest(T) %>%  # Make a tibble with the exposure durations for each experimental condition specified in Tlist--a list (conditions) of lists (exposure durations).
+    group_by(condition,is_masked) %>% rowwise() %>%	## TODO: Do we need this line?
+    mutate(score=tva_predict_score(cur_data_all(), tva_model=tva_model, tva_fit=tva_fit)) %>%
+    group_by(condition,is_masked,Display,T) %>%
+    summarise(score = mean(score))
+}
+
+#' Flatten matrix columns
+#'
+#' Collapse all rows of \code{mat} into single character strings, with columns separated by \code{collapse}. \code{NA}s can be replaced by \code{na_string}.
+#'
+#' @param mat A character matrix
+#' @param collapse String to use for collapsing elements (default: \code{,})
+#' @param na_string String to use instead of \code{NA} values
+#'
+#' @return Character vector of concatenated rows
+#' @export
+flatten_matrix_col <- function(mat, collapse = ",", na_string = "") {
+  mat[is.na(mat)] <- na_string
+  apply(mat, 1, paste, collapse = collapse)
 }
 
 .to_list_of_row_vectors <- function(x) lapply(seq_len(nrow(x)), function(i) as.matrix(x)[i,,drop=TRUE])
