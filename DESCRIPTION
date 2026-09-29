@@ -35,5 +35,5 @@ Suggests:
     ggplot2
 Additional_repositories: https://stan-dev.r-universe.dev
 LazyData: true
-RoxygenNote: 7.3.3
 VignetteBuilder: knitr
+Config/roxygen2/version: 8.1.0

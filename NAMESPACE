@@ -46,81 +46,107 @@ exportMethods(show)
 exportMethods(summary)
 importClassesFrom(rstan,stanfit)
 importClassesFrom(rstan,stanmodel)
-importFrom(brms,prior)
-importFrom(brms,set_prior)
-importFrom(cli,ansi_strwrap)
-importFrom(cli,col_blue)
-importFrom(cli,col_cyan)
-importFrom(cli,col_grey)
-importFrom(cli,col_magenta)
-importFrom(cli,style_bold)
-importFrom(cli,style_underline)
-importFrom(dplyr,"%>%")
-importFrom(dplyr,across)
-importFrom(dplyr,bind_cols)
-importFrom(dplyr,bind_rows)
-importFrom(dplyr,filter)
-importFrom(dplyr,group_by)
-importFrom(dplyr,if_else)
-importFrom(dplyr,last)
-importFrom(dplyr,mutate)
-importFrom(dplyr,n)
-importFrom(dplyr,rename)
-importFrom(dplyr,rowwise)
-importFrom(dplyr,select)
-importFrom(dplyr,summarize)
-importFrom(dplyr,transmute)
-importFrom(ggplot2,aes)
-importFrom(ggplot2,facet_wrap)
-importFrom(ggplot2,geom_line)
-importFrom(ggplot2,ggplot)
-importFrom(ggplot2,labs)
-importFrom(lme4,fixef)
-importFrom(lme4,ranef)
-importFrom(methods,as)
-importFrom(methods,callNextMethod)
-importFrom(methods,formalArgs)
-importFrom(methods,new)
-importFrom(methods,show)
-importFrom(readr,read_table)
-importFrom(readr,write_tsv)
-importFrom(reformulas,findbars)
-importFrom(reformulas,nobars)
-importFrom(reformulas,subbars)
-importFrom(rlang,.data)
-importFrom(rlang,.env)
-importFrom(rstan,expose_stan_functions)
-importFrom(rstan,extract)
-importFrom(rstan,get_rng)
-importFrom(rstan,get_stream)
-importFrom(rstan,gqs)
-importFrom(rstan,grad_log_prob)
-importFrom(rstan,log_prob)
-importFrom(rstan,optimizing)
-importFrom(rstan,read_stan_csv)
-importFrom(rstan,rstan_options)
-importFrom(rstan,sampling)
-importFrom(rstan,sflist2stanfit)
-importFrom(rstan,stan_model)
-importFrom(rstan,stanc)
-importFrom(rstan,unconstrain_pars)
-importFrom(stats,as.formula)
-importFrom(stats,contrasts)
-importFrom(stats,formula)
-importFrom(stats,model.matrix)
-importFrom(stats,na.omit)
-importFrom(stats,plogis)
-importFrom(stats,pnorm)
-importFrom(stats,qlogis)
-importFrom(stats,qnorm)
-importFrom(stats,runif)
-importFrom(stats,terms)
+importFrom(brms,
+  prior,
+  set_prior
+)
+importFrom(cli,
+  ansi_strwrap,
+  col_blue,
+  col_cyan,
+  col_grey,
+  col_magenta,
+  style_bold,
+  style_underline
+)
+importFrom(dplyr,
+  "%>%",
+  across,
+  bind_cols,
+  bind_rows,
+  filter,
+  group_by,
+  if_else,
+  last,
+  mutate,
+  n,
+  rename,
+  rowwise,
+  select,
+  summarize,
+  transmute
+)
+importFrom(ggplot2,
+  aes,
+  facet_wrap,
+  geom_line,
+  ggplot,
+  labs
+)
+importFrom(lme4,
+  fixef,
+  ranef
+)
+importFrom(methods,
+  as,
+  callNextMethod,
+  formalArgs,
+  new,
+  show
+)
+importFrom(readr,
+  read_table,
+  write_tsv
+)
+importFrom(reformulas,
+  findbars,
+  nobars,
+  subbars
+)
+importFrom(rlang,
+  .data,
+  .env
+)
+importFrom(rstan,
+  expose_stan_functions,
+  extract,
+  get_rng,
+  get_stream,
+  gqs,
+  grad_log_prob,
+  log_prob,
+  optimizing,
+  read_stan_csv,
+  rstan_options,
+  sampling,
+  sflist2stanfit,
+  stan_model,
+  stanc,
+  unconstrain_pars
+)
+importFrom(stats,
+  as.formula,
+  contrasts,
+  formula,
+  model.matrix,
+  na.omit,
+  plogis,
+  pnorm,
+  qlogis,
+  qnorm,
+  runif,
+  terms
+)
 importFrom(tibble,tibble)
-importFrom(tidyr,crossing)
-importFrom(tidyr,pivot_longer)
-importFrom(tidyr,pivot_wider)
-importFrom(utils,citation)
-importFrom(utils,combn)
-importFrom(utils,packageName)
-importFrom(utils,packageVersion)
-importFrom(utils,str)
+importFrom(tidyr,
+  crossing,
+  pivot_longer,
+  pivot_wider
+)
+importFrom(utils,
+  citation,
+  combn,
+  packageName,
+  packageVersion,
+  str
+)

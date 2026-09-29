@@ -11,6 +11,6 @@ These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
-  \item{brms}{\code{\link[brms:set_prior]{prior}}}
+  \item{brms}{\code{\link[brms:prior]{prior()}}}
 }}
 

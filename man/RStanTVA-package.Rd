@@ -21,6 +21,7 @@ Useful links:
 
 Authors:
 \itemize{
+  \item Maximilian M. Rabe \email{maximilian.rabe@uni-potsdam.de} (\href{https://orcid.org/0000-0002-2556-5644}{ORCID})
   \item Søren Kyllingsbæk \email{soeren.kyllingsbaek@psy.ku.dk} (\href{https://orcid.org/0000-0002-4100-437X}{ORCID})
 }
 
