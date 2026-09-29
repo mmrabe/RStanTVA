@@ -1896,7 +1896,7 @@ predict.stantvafit <- function(object, newdata, variables = names(model@code@df)
   fx <- bind_rows(lapply(model@code@config$formula, parse_formula))
   n_samples <- if(inherits(object, "stanfit")) (object@sim$iter-object@sim$warmup)*object@sim$chains else 1L
   sapply(variables, function(parname) {
-    which_formula <- match(parname, fx$param)
+    which_formula <- if("param" %in% colnames(fx)) match(parname, fx$param) else NA_integer_
     if(is.na(which_formula)) {
       if(inherits(object,"stanfit")) {
         p <- extract(as(object,"stanfit"), parname)[[1]]
