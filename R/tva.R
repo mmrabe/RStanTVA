@@ -375,7 +375,6 @@ parse_formula <- function(f) {
 #' @param K_mode The mode for the \eqn{K}{K} parameter.
 #' @param max_K The upper bound of \eqn{K}{K}.
 #' @param fixed Named vector or list of parameters that are not to be sampled/fitted but fixed to their respective values.
-#' @param parallel (logical) Whether to use parallel chains.
 #' @param save_log_lik (logical) Whether to save the log likelihood (needed for likelihood-based model comparison such as loo).
 #' @param priors The priors.
 #' @param sanity_checks (logical) Whether to perform sanity checks.
@@ -396,7 +395,6 @@ stantva_code <- function(
     K_mode = c("bernoulli", "free", "binomial", "betabinomial", "hypergeometric", "probit"),
     max_K = locations,
     fixed = NULL,
-    parallel = isTRUE(rstan_options("threads_per_chain") > 1L),
     save_log_lik = FALSE,
     priors = NULL,
     sanity_checks = TRUE,

@@ -14,9 +14,9 @@ sampling(object, ...)
   seed = sample.int(.Machine$integer.max, 1),
   ...,
   backend = c("rstan", "cmdstanr", "cmdstanr_mpi"),
-  cpp_options = if (match.arg(backend) == "cmdstanr") list(stan_threads =
-    object@code@config$parallel) else if (match.arg(backend) == "cmdstanr_mpi") list(CXX
-    = "mpicxx", TBB_CXX_TYPE = "gcc", STAN_MPI = TRUE)
+  cpp_options = if (match.arg(backend) == "cmdstanr") list(stan_threads = TRUE) else if
+    (match.arg(backend) == "cmdstanr_mpi") list(CXX = "mpicxx", TBB_CXX_TYPE = "gcc",
+    STAN_MPI = TRUE)
 )
 }
 \arguments{

@@ -15,7 +15,6 @@ stantva_code(
   K_mode = c("bernoulli", "free", "binomial", "betabinomial", "hypergeometric", "probit"),
   max_K = locations,
   fixed = NULL,
-  parallel = isTRUE(rstan_options("threads_per_chain") > 1L),
   save_log_lik = FALSE,
   priors = NULL,
   sanity_checks = TRUE,
@@ -42,8 +41,6 @@ stantva_code(
 \item{max_K}{The upper bound of \eqn{K}{K}.}
 
 \item{fixed}{Named vector or list of parameters that are not to be sampled/fitted but fixed to their respective values.}
-
-\item{parallel}{(logical) Whether to use parallel chains.}
 
 \item{save_log_lik}{(logical) Whether to save the log likelihood (needed for likelihood-based model comparison such as loo).}
 
