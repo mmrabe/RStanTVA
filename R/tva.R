@@ -1459,6 +1459,8 @@ setMethod("show", c(object="stantvamodel"), function(object) {
 init_sampler <- function(model, pdata, seed = 0L) {
   f <- suppressMessages(sampling(as(model,"stanmodel"), pdata, chains = 0L, iter = 0L, refresh = 0L, init = "random", seed = seed, algorithm = "Fixed_param", show_messages = FALSE))
   function(chain_id = 1) {
+    old_random_seed <- .Random.seed
+    set.seed(chain_id + seed + 5L)
     init_rng <- get_rng(if(seed == 0L) 0L else seed + chain_id)
     max_tries <- 1000L
     target_tries <- 5L
@@ -1466,7 +1468,7 @@ init_sampler <- function(model, pdata, seed = 0L) {
     best_init <- list()
     best_init_ll <- -Inf
     for(try_no in seq_len(max_tries)) {
-      p <- list()
+      p <- constrain_pars(f, rnorm(f@.MISC$stan_fit_instance$num_pars_unconstrained()))
       initializers <- Filter(function(x) startsWith(x,"init_"), names(model@initializers))
       while(length(initializers) > 0L) {
         for(fn in initializers) {
@@ -1495,7 +1497,7 @@ init_sampler <- function(model, pdata, seed = 0L) {
           initializers <- setdiff(initializers, fn)
         }
       }
-      init_lp <- tryCatch(log_prob(f, unconstrain_pars(f, p), gradient = TRUE), error = function(e) Inf)
+      init_lp <- tryCatch(log_prob(f, unconstrain_pars(f, p), gradient = TRUE), error = function(e) -Inf)
       if(is.finite(init_lp) && all(is.finite(attr(init_lp, "gradient")))) {
         if(init_lp > best_init_ll) {
           #message("Better proposal: ",init_lp," > ",best_init_ll)
@@ -1515,6 +1517,7 @@ init_sampler <- function(model, pdata, seed = 0L) {
     } else if(valid_tries < target_tries) {
       warning("Could not generate a minimum of ",target_tries," valid initial proposal(s) in ", max_tries," attempt(s)!")
     }
+    .Random.seed <- old_random_seed
     best_init
   }
 }
