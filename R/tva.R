@@ -535,22 +535,6 @@ stantva_code <- function(
     )
   }
 
-  parmap <- function(names = base::names(parameters)) {
-    names_theta <- Filter(function(name) !is.null(parameters[[name]]$class) && "theta" %in% parameters[[name]]$class, names)
-    names_phi <- Filter(function(name) !is.null(parameters[[name]]) && (is.null(parameters[[name]]$class) || "phi" %in% parameters[[name]]$class), names)
-    par_size_theta <- vapply(parameters[names_theta], function(item) if(is.null(item$dim)) 1L else as.integer(item$dim), integer(1))
-    par_offset_theta <- c(1L,1L+cumsum(par_size_theta[-length(par_size_theta)]))
-    par_size_phi <- vapply(parameters[names_phi], function(item) if(is.null(item$dim)) 1L else as.integer(item$dim), integer(1))
-    par_offset_phi <- c(1L,1L+cumsum(par_size_phi[-length(par_size_phi)]))
-    c(
-      sprintf("vector[%d] phi;", sum(par_size_phi)),
-      vapply(seq_along(names_phi), function(i) if(par_size_phi[i] == 1) sprintf("phi[%d] = %s;", par_offset_phi[i], names_phi[i]) else sprintf("phi[%d:%d] = %s;", par_offset_phi[i], par_offset_phi[i]+par_size_phi[i]-1L, names_phi[i]), character(1)),
-      sprintf("array[N] vector[%d] theta;", sum(par_size_theta)),
-      unlist(lapply(seq_along(names_theta), function(i) if(par_size_theta[i] == 1) sprintf("theta[:,%d] = to_array_1d(%s);", par_offset_theta[i], names_theta[i]) else sprintf("theta[:,%d] = to_array_1d(%s[,%d]);", seq.int(from = par_offset_theta[i], length.out = par_size_theta[i]), names_theta[i], seq_len(par_size_theta[i]))))
-      #vapply(seq_along(names_theta), function(i) if(par_size_theta[i] == 1) sprintf("theta[:,%d] = to_array_1d(%s);", par_offset_theta[i], names_theta[i]) else sprintf("theta[:,%d:%d] = to_vector_array(%s);", par_offset_theta[i], par_offset_theta[i]+par_size_theta[i]-1L, names_theta[i]), character(1))
-    )
-  }
-
   parremap <- function(names = base::names(parameters), names_back = names) {
     names_theta <- Filter(function(name) !is.null(parameters[[name]]$class) && "theta" %in% parameters[[name]]$class, names)
     names_phi <- Filter(function(name) !is.null(parameters[[name]]) && (is.null(parameters[[name]]$class) || "phi" %in% parameters[[name]]$class), names)
@@ -591,7 +575,7 @@ stantva_code <- function(
     )
   }
 
-  datsig <- function(names = base::names(mydata), names_back = names, types = TRUE, index = NULL) {
+  datsig <- function(names = base::names(mydata), names_back = names, types = TRUE, index = NULL, hierarchical = FALSE) {
     names_x_i <- Filter(function(name) !is.null(mydata[[name]]$class) && "x_i" %in% mydata[[name]]$class, names)
     names_x_r <- Filter(function(name) !is.null(mydata[[name]]$class) && "x_r" %in% mydata[[name]]$class, names)
     which_names_back_x_i <- na.omit(match(names_back, names_x_i))
@@ -601,8 +585,8 @@ stantva_code <- function(
     par_size_x_r <- vapply(mydata[names_x_r], function(item) if(is.null(item$dim)) 1L else as.integer(item$dim), integer(1))
     par_offset_x_r <- c(1L,1L+cumsum(par_size_x_r[-length(par_size_x_r)]))
     c(
-      vapply(which_names_back_x_i, function(i) if(isTRUE(types)) sprintf("data %s %s", mydata[[names_x_i[i]]]$rtype, names_x_i[i]) else if(!is.null(index)) sprintf("%s[%s]", names_x_i[i], index) else names_x_i[i], character(1)),
-      vapply(which_names_back_x_r, function(i) if(isTRUE(types)) sprintf("data %s %s", mydata[[names_x_r[i]]]$rtype, names_x_r[i]) else if(!is.null(index)) sprintf("%s[%s]", names_x_r[i], index) else names_x_r[i], character(1))
+      vapply(which_names_back_x_i, function(i) if(isTRUE(types)) sprintf("data %s %s", if(isTRUE(hierarchical)) mydata[[names_x_i[i]]]$htype else mydata[[names_x_i[i]]]$rtype, names_x_i[i]) else if(!is.null(index)) sprintf("%s[%s]", names_x_i[i], index) else names_x_i[i], character(1)),
+      vapply(which_names_back_x_r, function(i) if(isTRUE(types)) sprintf("data %s %s", if(isTRUE(hierarchical)) mydata[[names_x_r[i]]]$htype else mydata[[names_x_r[i]]]$rtype, names_x_r[i]) else if(!is.null(index)) sprintf("%s[%s]", names_x_r[i], index) else names_x_r[i], character(1))
     )
   }
 
@@ -749,7 +733,7 @@ stantva_code <- function(
     t0_args <- "[1/mu0]'"
   }
 
-  add_data(name = "nS", type = "array[N] int", ctype = "int", rtype="int", class="x_i", transformed = TRUE)
+  add_data(name = "nS", type = "array[N] int", ctype = "int", rtype="int", htype = "array[] int", class="x_i", transformed = TRUE)
   add_code(
     "transformed data",
     "for(i in 1:N) nS[i] = sum(S[i,]);",
@@ -758,9 +742,9 @@ stantva_code <- function(
 
 
 
-  add_data(name = "T", class="x_r", type = "array[N] real<lower=0>", ctype = "real", rtype="real")
-  add_data(name = "S", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), ctype = sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
-  add_data(name = "R", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), ctype = sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
+  add_data(name = "T", class="x_r", type = "array[N] real<lower=0>", htype = "array[] real", ctype = "real", rtype="real")
+  add_data(name = "S", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), htype = "array[,] int", ctype = sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
+  add_data(name = "R", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), htype = "array[,] int", ctype = sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
 
 
   if(task == "wr") {
@@ -810,7 +794,7 @@ stantva_code <- function(
       "for(i in 1:nS) if(v[i] < machine_precision()) v[i] = machine_precision();",
       "return v/1000.0;"
     )
-    add_data(name = "D", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), ctype=sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
+    add_data(name = "D", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), htype = "array[,] int", ctype=sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
     add_param(name = "alpha", type = "real<lower=machine_precision()>", ctype = "real", rtype="real", prior = ~lognormal(-0.4,0.6))
     l_data <- union(c("S","D","R","T"), v_data)
     l_pars <- c(v_pars,if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
@@ -923,7 +907,6 @@ stantva_code <- function(
       sprintf("int M_%s = %s;", all_random_params$group, all_random_params$M_var),
       sprintf("array[N_%1$s] int<lower=0> Ntrials_by_%1$s = rep_array(0, N_%1$s);", clean_name(all_random_factors)),
       sprintf("array[N_%1$s,N] int<lower=0> trials_by_%1$s = rep_array(0, N_%1$s, N);", clean_name(all_random_factors)),
-      sprintf("matrix[N_%1$s,N_%1$s-1] Q_%1$s = sum_to_zero_basis(N_%1$s);", clean_name(all_random_factors)),
       if(length(all_random_factors) > 0) "for(i in 1:N) {",
       sprintf("\tNtrials_by_%1$s[%1$s[i]] += 1;", clean_name(all_random_factors)),
       sprintf("\ttrials_by_%1$s[%1$s[i],Ntrials_by_%1$s[%1$s[i]]] = i;", clean_name(all_random_factors)),
@@ -933,71 +916,16 @@ stantva_code <- function(
       "parameters",
       "vector[M] b;",
       sprintf("vector<lower=machine_precision()>[M_%1$s] s_%1$s;", all_random_params$group),
-      sprintf("array[M_%1$s] unit_vector[N_%2$s-1] nw_%1$s;", all_random_params$group, all_random_params$factor_txt)
+      sprintf("matrix[N_%2$s,M_%1$s] q_%1$s;", all_random_params$group, all_random_params$factor_txt),
+      sprintf("cholesky_factor_corr[M_%1$s] L_%1$s;", all_random_params$group)
     )
     add_code(
       "transformed parameters",
-      sprintf("matrix[N_%2$s,M_%1$s] w_%1$s;", all_random_params$group, all_random_params$factor_txt),
-      sprintf("for(i in 1:M_%1$s) w_%1$s[:,i] = (Q_%2$s * nw_%1$s[i]) * sqrt(N_%2$s - 1) * s_%1$s[i];", all_random_params$group, all_random_params$factor_txt),
-      sprintf("matrix[M_%1$s,M_%1$s] r_%1$s = sample_covariance(w_%1$s) ./ tcrossprod(to_matrix(s_%1$s));", all_random_params$group)
+      sprintf("matrix[N_%2$s,M_%1$s] w_%1$s = q_%1$s * diag_pre_multiply(s_%1$s, L_%1$s)';", all_random_params$group, all_random_params$factor_txt)
     )
     add_code(
-      "transformed parameters",
-      unlist(lapply(seq_len(nrow(all_params)), function(i) {
-        if(all_params$dim[i] == 1) {
-          sprintf("vector%2$s[N] %1$s;", all_params$name[i], gsub("^[^<>]*(<.*>)?[^<>]*$","\\1",parameters[[all_params$name[i]]]$type))
-        } else if(grepl("^simplex",parameters[[all_params$name[i]]]$type)) {
-          sprintf("matrix<lower=machine_precision(),upper=1.0-machine_precision()>[N,%2$d] %1$s;", all_params$name[i], all_params$dim[i])
-        } else {
-          sprintf("matrix%3$s[N,%2$d] %1$s;", all_params$name[i], all_params$dim[i], gsub("^[^<>]*(<.*>)?[^<>]*$","\\1",parameters[[all_params$name[i]]]$type))
-        }
-      })),
-      "{",
-      paste0("\t",
-             c(
-               unlist(lapply(seq_len(nrow(all_params)), function(i) {
-                 if(all_params$dim[i] == 1) {
-                   sprintf("%1$s = X[,map_%1$s] * b[map_%1$s];", all_params$name[i])
-                 } else {
-                   sprintf("%2$s[,%1$d] = X[,map_%2$s_%1$d] * b[map_%2$s_%1$d];", seq_len(all_params$fdim[i]), all_params$name[i])
-                 }
-               })),
-               unlist(lapply(all_random_factors, function(rf) {
-                 j <- which(all_random_effects$factor_txt == rf)
-                 c(
-                   sprintf("for(i in 1:N_%s) {", clean_name(rf)),
-                   sprintf("\tarray[Ntrials_by_%1$s[i]] int j = trials_by_%1$s[i,:Ntrials_by_%1$s[i]];", clean_name(rf)),
-                   #sprintf("\tmatrix[Ntrials_by_%1$s[i],M_%2$s] Z_%2$s_i = Z_%2$s[j,:];", clean_name(rf), unique(all_random_effects$group[j])),
-                   #sprintf("\tvector[M_%1$s] z_%1$s_i = w_%1$s[i,:];", unique(all_random_effects$group[j])),
-                   unlist(
-                     lapply(j, function(i) {
-                       k <- match(all_random_effects$param[i], all_params$name)
-                       if(all_params$dim[k] == 1L) {
-                         sprintf("\t%1$s[j] += Z_%2$s[j,map_%1$s_%2$s] * w_%2$s[i,map_%1$s_%2$s]';", all_random_effects$param[i], all_random_effects$group[i])
-                       } else {
-                         sprintf("\t%1$s[j,%3$d] += Z_%2$s[j,map_%1$s_%3$d_%2$s] * w_%2$s[i,map_%1$s_%3$d_%2$s]';", all_random_effects$param[i], all_random_effects$group[i], all_random_effects$index[i])
-                       }
-                     })
-                   ),
-                   "}"
-                 )
-               })),
-               unlist(lapply(which(all_params$link_name != "identity"), function(i) if(all_params$fdim[i] < all_params$dim[i]) sprintf("%1$s[,:%2$d] = %3$s;", all_params$name[i], all_params$fdim[i], sprintf(all_params$stan_inverse_link[i], sprintf("%s[,:%d]", all_params$name[i], all_params$fdim[i]))) else sprintf("%1$s = %2$s;", all_params$name[i], sprintf(all_params$stan_inverse_link[i], all_params$name[i])))),
-               unlist(lapply(which(all_params$fdim < all_params$dim), function(i) c(sprintf("%1$s[,%2$d] = 1.0 / (1.0 + %3$s);", all_params$name[i], all_params$dim[i], paste(sprintf("%s[,%d]", all_params$name[i], seq_len(all_params$fdim[i])), collapse = " + ")), sprintf("%1$s[,%3$d] .*= %1$s[,%2$d];", all_params$name[i], all_params$dim[i], seq_len(all_params$fdim[i])))))
-             )
-      ),
-      "}",
-      unlist(lapply(seq_len(nrow(all_params)), function(i) {
-        if(all_params$dim[i] == 1) {
-          sprintf("for(i in 1:N) if(is_nan(%1$s[i]) || is_inf(%1$s[i])) reject(\"Rejecting proposal because %1$s[\",i,\"] = \",%1$s[i],\" !\");", all_params$name[i])
-        } else {
-          sprintf("for(i in 1:N) for(j in 1:cols(%1$s)) if(is_nan(%1$s[i,j]) || is_inf(%1$s[i,j])) reject(\"Rejecting proposal because %1$s[\",i,\",\",j,\"] = \",%1$s[i,j],\" !\");", all_params$name[i])
-        }
-      }))
-    )
-    add_code(
-      "transformed data",
-      sprintf("vector[M_%1$s] mu_w_%1$s = rep_vector(0.0, M_%1$s);", all_random_params$group)
+      "generated quantities",
+      sprintf("corr_matrix[M_%1$s] r_%1$s = multiply_lower_tri_self_transpose(L_%1$s);", all_random_params$group)
     )
 
 
@@ -1100,9 +1028,9 @@ stantva_code <- function(
       p_r <- get_prior(priors, "cor", group = all_random_params$group[i])
       eval_prior <- c(
         eval_prior,
+        sprintf("to_vector(q_%1$s) ~ std_normal();", all_random_params$group[i]),
         sprintf("if(M_%s > 1) {", all_random_params$group[i]),
-        if(is.null(p_r)) sprintf("\t// no prior for %s random effects correlations", all_random_params$group[i]) else  sprintf("\tr_%1$s ~ %2$s;", all_random_params$group[i], p_r),
-        #sprintf("\tw_%1$s ~ multi_normal(mu_w_%1$s, quad_form(r_%1$s, to_matrix(s_%1$s)));", all_random_params$group[i]),
+        if(is.null(p_r)) sprintf("\t// no prior for %s random effects correlations", all_random_params$group[i]) else  sprintf("\tL_%1$s ~ %2$s;", all_random_params$group[i], p_r),
         #"} else {",
         #sprintf("\tw_%1$s[,1] ~ normal(0.0, s_%1$s[1]);", all_random_params$group[i]),
         "}"
@@ -1110,18 +1038,16 @@ stantva_code <- function(
 
       global_prior <- c(
         global_prior,
-        #sprintf("matrix init_r_%1$s_rng(vector s_%1$s) { return %2$s; }", all_random_params$group[i], add_rng(p_r,pre=sprintf("size(s_%s),",all_random_params$group[i]))),
+        sprintf("matrix init_L_%1$s_rng(vector s_%1$s) { return %2$s; }", all_random_params$group[i], add_rng(p_r,pre=sprintf("size(s_%s),",all_random_params$group[i]))),
         #sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { matrix[N_%2$s, size(s_%1$s)] w_%1$s = rep_matrix(0.0, N_%2$s, size(s_%1$s)); for(i in 1:N_%2$s) w_%1$s[i,:] = to_row_vector(multi_normal_rng(rep_vector(0.0, size(s_%1$s)), quad_form(r_%1$s, to_matrix(s_%1$s)))); return w_%1$s; }", all_random_params$group[i], all_random_params$factor_txt[i])
         #sprintf("matrix init_w_%1$s_rng(int N_%2$s, matrix r_%1$s, vector s_%1$s) { return rep_matrix(0.0, N_%2$s, size(s_%1$s)); }", all_random_params$group[i], all_random_params$factor_txt[i])
-        sprintf("matrix init_nw_%1$s_rng(int N_%2$s, vector s_%1$s) { matrix[size(s_%1$s),N_%2$s-1] ret; for(i in 1:rows(ret)) { for(j in 1:cols(ret)) ret[i,j]=std_normal_rng(); ret[i,:] /= norm2(ret[i,:]); } return ret; }", all_random_params$group[i], all_random_params$factor_txt[i])
+        #sprintf("matrix init_nw_%1$s_rng(int N_%2$s, vector s_%1$s) { matrix[size(s_%1$s),N_%2$s-1] ret; for(i in 1:rows(ret)) { for(j in 1:cols(ret)) ret[i,j]=std_normal_rng(); ret[i,:] /= norm2(ret[i,:]); } return ret; }", all_random_params$group[i], all_random_params$factor_txt[i])
+        sprintf("matrix init_q_%1$s_rng(int N_%2$s, vector s_%1$s) { matrix[N_%2$s,size(s_%1$s)] ret; for(i in 1:rows(ret)) for(j in 1:cols(ret)) ret[i,j]=std_normal_rng(); return ret; }", all_random_params$group[i], all_random_params$factor_txt[i])
       )
-
     }
 
+
   }
-
-
-  ##
 
 
 
@@ -1133,14 +1059,76 @@ stantva_code <- function(
   )
 
 
-  if(isTRUE(parallel)) {
-    add_code(
-      "functions",
-      "vector log_lik_rect(vector phi, vector theta, data array[] real x_r, data array[] int x_i) {",
-      paste0("\treturn [log_lik_single(",paste(c(datremap(names_back = l_data), parremap(l_pars)),collapse=", "),")]';"),
-      "}"
-    )
+  gl_pars <- Filter(function(name) is.null(parameters[[name]]$hierarchical), l_pars)
+
+  r_sig <- c(datsig(names_back = l_data, types = TRUE, hierarchical = TRUE), parsig(gl_pars, types = TRUE))
+  r_call <- c(datsig(names_back = l_data, types = FALSE), parsig(gl_pars, types = FALSE))
+  par_calc <- character()
+  if(nrow(hierarchical_config) > 0L) {
+    r_sig <- c(r_sig, "matrix X", "vector b")
+    r_call <- c(r_call, "X", "b")
+    for(name in names(parameters)) {
+      if(!is.null(parameters[[name]]$hierarchical)) {
+        if(parameters[[name]]$hierarchical$dim == 1L) {
+          r_sig <- c(r_sig, sprintf("array[] int map_%s", name))
+          r_call <- c(r_call, sprintf("map_%s", name))
+        }else {
+          r_sig <- c(r_sig, sprintf("array[] int map_%s_%d", name, seq_len(parameters[[name]]$hierarchical$fdim)))
+          r_call <- c(r_call, sprintf("map_%s_%d", name, seq_len(parameters[[name]]$hierarchical$fdim)))
+        }
+      }
+    }
+    if(nrow(all_random_params) > 0L) {
+      r_sig <- c(r_sig, sprintf("int N_%s", all_random_factors), sprintf("array[] int %s", all_random_factors), sprintf("matrix Z_%1$s", all_random_params$group), sprintf("matrix w_%1$s", all_random_params$group))
+      r_call <- c(r_call, sprintf("N_%s", all_random_factors), all_random_factors, sprintf("Z_%1$s", all_random_params$group), sprintf("w_%1$s", all_random_params$group))
+      for(i in seq_len(nrow(all_random_effects))) {
+        name <- all_random_effects$param[i]
+        gr <- all_random_effects$group[i]
+        if(parameters[[name]]$hierarchical$dim == 1L) {
+          r_sig <- c(r_sig, sprintf("array[] int map_%1$s_%2$s", name, gr))
+          r_call <- c(r_call, sprintf("map_%1$s_%2$s", name, gr))
+        } else {
+          r_sig <- c(r_sig, sprintf("array[] int map_%1$s_%3$d_%2$s", name, gr, seq_len(parameters[[name]]$hierarchical$fdim)))
+          r_call <- c(r_call, sprintf("map_%1$s_%3$d_%2$s", name, gr, seq_len(parameters[[name]]$hierarchical$fdim)))
+        }
+      }
+    }
+    for(i in seq_len(nrow(all_params))) {
+      if(all_params$dim[i] == 1) {
+        par_calc <- c(par_calc, sprintf("vector[size(ix)] %1$s;", all_params$name[i]))
+      } else if(grepl("^simplex",parameters[[all_params$name[i]]]$type)) {
+        par_calc <- c(par_calc, sprintf("matrix[size(ix),%2$d] %1$s;", all_params$name[i], all_params$dim[i]))
+      } else {
+        par_calc <- c(par_calc, sprintf("matrix[size(ix),%2$d] %1$s;", all_params$name[i], all_params$dim[i]))
+      }
+      if(all_params$dim[i] == 1) {
+        par_calc <- c(par_calc, sprintf("%1$s = X[ix,map_%1$s] * b[map_%1$s];", all_params$name[i]))
+        if(nrow(all_random_effects) > 0L) for(j in which(all_random_effects$param == all_params$name[i])){
+          par_calc <- c(par_calc, sprintf("%1$s += rows_dot_product(Z_%2$s[ix,map_%1$s_%2$s], w_%2$s[%3$s[ix],map_%1$s_%2$s]);", all_random_effects$param[j], all_random_effects$group[j], all_random_effects$factor_txt[j]))
+        }
+      } else {
+        par_calc <- c(par_calc, sprintf("%2$s[,%1$d] = X[ix,map_%2$s_%1$d] * b[map_%2$s_%1$d];", seq_len(all_params$fdim[i]), all_params$name[i]))
+        if(nrow(all_random_effects) > 0L) for(j in which(all_random_effects$param == all_params$name[i])){
+          par_calc <- c(par_calc, sprintf("%1$s[,%4$d] += rows_dot_product(Z_%2$s[ix,map_%1$s_%4$d_%2$s], w_%2$s[%3$s[ix],map_%1$s_%4$d_%2$s]);", all_random_effects$param[j], all_random_effects$group[j], all_random_effects$factor_txt[j], all_random_effects$index[j]))
+        }
+      }
+      if(all_params$link_name[i] != "identity") {
+        par_calc <- c(par_calc, if(all_params$fdim[i] < all_params$dim[i]) sprintf("%1$s[,:%2$d] = %3$s;", all_params$name[i], all_params$fdim[i], sprintf(all_params$stan_inverse_link[i], sprintf("%s[,:%d]", all_params$name[i], all_params$fdim[i]))) else sprintf("%1$s = %2$s;", all_params$name[i], sprintf(all_params$stan_inverse_link[i], all_params$name[i])))
+      }
+      if(all_params$fdim[i] < all_params$dim[i]) {
+        par_calc <- c(par_calc, c(sprintf("%1$s[,%2$d] = 1.0 / (1.0 + %3$s);", all_params$name[i], all_params$dim[i], paste(sprintf("%s[,%d]", all_params$name[i], seq_len(all_params$fdim[i])), collapse = " + ")), sprintf("%1$s[,%3$d] .*= %1$s[,%2$d];", all_params$name[i], all_params$dim[i], seq_len(all_params$fdim[i]))))
+      }
+    }
   }
+  add_code(
+    "functions",
+    paste0("real log_lik_reduce(array[] int ix, int start, int end, ",paste(r_sig, collapse = ", "),") {"),
+    "\treal ll = 0.0;",
+    paste0("\t", par_calc),
+    paste0("\tfor(i in 1:size(ix)) ll += log_lik_single(",paste(c(datsig(names_back = l_data, types = FALSE, index="ix[i]"), parsig(l_pars, types = FALSE, index="i")),collapse=", "),");"),
+    "\treturn ll;",
+    "}"
+  )
 
   for(name in names(parameters)) {
 
@@ -1253,33 +1241,19 @@ stantva_code <- function(
     }))
   )
 
-  if(isTRUE(parallel)) {
-    add_code(
-      "transformed data",
-      datmap()
-    )
-    add_code(
-      "transformed parameters 2",
-      parmap(l_pars)
-    )
-  }
-
   add_code(
     "functions",
     initializers
   )
 
+  add_code(
+    "transformed data",
+    "array[N] int trial_indices = linspaced_int_array(N, 1, N);"
+  )
 
   add_code(
     "model",
-    "// likelihood (only if prior != 0)",
-    "if(target() != negative_infinity()) {",
-    if(isTRUE(parallel)) {
-      paste0("\ttarget += map_rect(log_lik_rect, phi, theta, x_r, x_i);")
-    } else {
-      paste0("\tfor(i in 1:N) target += log_lik_single(",paste(c(datsig(names_back = l_data, types = FALSE, index = "i"), parsig(l_pars, types = FALSE, index = "i")),collapse=", "),");")
-    },
-    "}"
+    paste0("target += reduce_sum(log_lik_reduce, trial_indices, 1, ", paste0(r_call, collapse=", "),");")
   )
 
   if(isTRUE(save_log_lik)) {
@@ -1289,11 +1263,7 @@ stantva_code <- function(
       "vector[N] log_lik;",
       "{",
       paste0("\t", code_blocks$`transformed parameters 2`),
-      if(isTRUE(parallel)) {
-        paste0("\tlog_lik = map_rect(log_lik_rect, phi, theta, x_r, x_i);")
-      } else {
-        paste0("\tfor(i in 1:N) log_lik[i] = log_lik_single(",paste(c(datsig(names_back = l_data, types = FALSE, index = "i"), parsig(l_pars, types = FALSE, index = "i")),collapse=", "),");")
-      },
+      paste0("\tfor(i in 1:N) log_lik[i] = log_lik_reduce({i}, i, i, ", paste(c(datsig(names_back = l_data, types = FALSE, index = "i"), parsig(l_pars, types = FALSE, index = "i")),collapse=", "),");"),
       "}"
     )
   }
@@ -1427,9 +1397,7 @@ stantva_model <- function(..., stan_options = list()) {
   mc <- if(length(args) == 1 && inherits(args[[1]], "stantvacode")) args[[1]] else do.call(stantva_code, args)
   stan_options$model_code <- mc@code
   stan_options$isystem <- c(mc@include_path, stan_options$isystem)
-  if(isTRUE(mc@config$parallel) && rstan_options("threads_per_chain") <= 1L) {
-    stop("You requested a parallel model but RStan has not been configured to use multithreading! Try `rstan_options(threads_per_chain = ...)` to set the appropriate number of parallel threads within each chain before compiling the model code! To use all available CPUs, try `rstan_options(threads_per_chain = parallel::detectCores())`. If you do not wish to use multithreading, regenerate the model with `parallel = FALSE`!")
-  }
+  #stan_options$standalone_functions <- TRUE
   m <- do.call(stan_model, stan_options) %>% as("stantvamodel")
   m@code <- mc
   m@initializers <- new.env(parent = baseenv())
@@ -1491,7 +1459,7 @@ setMethod("show", c(object="stantvamodel"), function(object) {
 })
 
 init_sampler <- function(model, pdata, seed = 0L) {
-  f <- sampling(as(model,"stanmodel"), pdata, chains = 1L, iter = 1L, refresh = 0L, init = "random", seed = seed, algorithm = "Fixed_param")
+  f <- suppressMessages(sampling(as(model,"stanmodel"), pdata, chains = 0L, iter = 0L, refresh = 0L, init = "random", seed = seed, algorithm = "Fixed_param", show_messages = FALSE))
   function(chain_id = 1) {
     init_rng <- get_rng(if(seed == 0L) 0L else seed + chain_id)
     max_tries <- 1000L
@@ -1585,7 +1553,7 @@ setGeneric("optimizing")
 #'@param ... Further arguments passed to the sampling handler of the specified backend.
 #'@return Returns a \code{stantva_fit} object, which inherits from \code{\link[rstan:stanfit]{stanfit}}, representing the fit of \code{object} to \code{data}.
 #'@export
-setMethod("sampling", c(object = "stantvamodel"), function(object, data, init = "random", seed = sample.int(.Machine$integer.max, 1), ..., backend = c("rstan","cmdstanr","cmdstanr_mpi"), cpp_options = if(match.arg(backend) == "cmdstanr") list(stan_threads = object@code@config$parallel) else if(match.arg(backend) == "cmdstanr_mpi") list(CXX = "mpicxx", TBB_CXX_TYPE = "gcc", STAN_MPI = TRUE)) {
+setMethod("sampling", c(object = "stantvamodel"), function(object, data, init = "random", seed = sample.int(.Machine$integer.max, 1), ..., backend = c("rstan","cmdstanr","cmdstanr_mpi"), cpp_options = if(match.arg(backend) == "cmdstanr") list(stan_threads = TRUE) else if(match.arg(backend) == "cmdstanr_mpi") list(CXX = "mpicxx", TBB_CXX_TYPE = "gcc", STAN_MPI = TRUE)) {
   if(object@code@config$locations != ncol(data$S)) stop("Cannot fit a StanTVA model compiled for ",object@code@config$locations," location(s) to a data set with ",ncol(data$S)," location(s)!")
   pdata <- prepare_data(data, object)
   formula_lhs <- attr(object@code@df, "formula_lhs")
