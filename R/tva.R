@@ -1868,11 +1868,11 @@ predict.stantvafit <- function(object, newdata, variables = names(model@code@df)
     which_formula <- if("param" %in% colnames(fx)) match(parname, fx$param) else NA_integer_
     if(is.na(which_formula)) {
       if(inherits(object,"stanfit")) {
-        p <- extract(as(object,"stanfit"), parname)[[1]]
+        array(t(extract(as(object,"stanfit"), parname)[[1]]), dim = if(model@code@dim[parname] > 1L) c(newdata$N,model@code@dim[parname],n_samples) else c(newdata$N,n_samples))
       } else {
         p <- t(if(model@code@dim[parname] > 1L) object$par[sprintf("%s[%d]", parname, seq_len(model@code@dim[parname]))] else object$par[parname])
+        p[rep(1L,newdata$N),,drop=TRUE]
       }
-      p[rep(1L,newdata$N),,drop=FALSE]
     } else {
       bt <- fx$inverse_link[[which_formula]]
       rfs <- fx$random[[which_formula]]
@@ -1918,7 +1918,7 @@ predict.stantvafit <- function(object, newdata, variables = names(model@code@df)
           r[,,i] <- r[,,i] / rs
         }
       }
-      if(model@code@dim[parname] > 1) aperm(r,c(1,3,2)) else r[,,1]
+      if(model@code@dim[parname] > 1) aperm(r,c(2,3,1)) else t(r[,,1])
     }
   }, simplify = FALSE)
 }
