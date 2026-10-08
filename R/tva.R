@@ -1463,7 +1463,7 @@ init_sampler <- function(model, pdata, seed = 0L) {
     set.seed(chain_id + seed + 5L)
     init_rng <- get_rng(if(seed == 0L) 0L else seed + chain_id)
     max_tries <- 1000L
-    target_tries <- 5L
+    target_tries <- 1L
     valid_tries <- 0L
     best_init <- list()
     best_init_ll <- -Inf
