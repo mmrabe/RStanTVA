@@ -753,6 +753,7 @@ stantva_code <- function(
       s_body,
       "array[nS] int Ss = get_matches(S);",
       "vector[nS] v = s[Ss] .* w[Ss] / sum(w[Ss]);",
+      "for(i in 1:nS) if(v[i] < machine_precision()) v[i] = machine_precision();",
       "return v/1000.0;"
     )
     l_data <- union(c("S","R","T","nS"), v_data)
@@ -788,6 +789,7 @@ stantva_code <- function(
       sprintf("vector[%d] w_alpha = w;", locations),
       sprintf("for(i in 1:%d) if(D[i]) w_alpha[i] *= alpha;", locations),
       "vector[nS] v = s[Ss] .* w_alpha[Ss] / sum(w_alpha[Ss]);",
+      "for(i in 1:nS) if(v[i] < machine_precision()) v[i] = machine_precision();",
       "return v/1000.0;"
     )
     add_data(name = "D", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), htype = "array[,] int", ctype=sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
