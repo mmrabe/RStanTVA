@@ -1261,7 +1261,7 @@ stantva_code <- function(
       "vector[N] log_lik;",
       "{",
       paste0("\t", code_blocks$`transformed parameters 2`),
-      paste0("\tfor(i in 1:N) log_lik[i] = log_lik_reduce({i}, i, i, ", paste(c(datsig(names_back = l_data, types = FALSE, index = "i"), parsig(l_pars, types = FALSE, index = "i")),collapse=", "),");"),
+      paste0("\tfor(i in 1:N) log_lik[i] = log_lik_reduce({i}, i, i, ", paste0(r_call, collapse=", "),");"),
       "}"
     )
   }
