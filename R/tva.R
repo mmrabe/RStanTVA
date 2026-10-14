@@ -752,9 +752,9 @@ stantva_code <- function(
       w_body,
       s_body,
       "array[nS] int Ss = get_matches(S);",
-      "vector[nS] v = s[Ss] .* w[Ss] / sum(w[Ss]);",
+      "vector[nS] v = s[Ss] .* w[Ss] / sum(w[Ss]) / 1000.0;",
       "for(i in 1:nS) if(v[i] < machine_precision()) v[i] = machine_precision();",
-      "return v/1000.0;"
+      "return v;"
     )
     l_data <- union(c("S","R","T","nS"), v_data)
     l_pars <- c(v_pars, if(!is.null(parameters$t0))"t0",Filter(function(p) any(c("t0","K") %in% parameters[[p]]$class), names(parameters)))
@@ -788,9 +788,9 @@ stantva_code <- function(
       "array[nS] int Ss = get_matches(S);",
       sprintf("vector[%d] w_alpha = w;", locations),
       sprintf("for(i in 1:%d) if(D[i]) w_alpha[i] *= alpha;", locations),
-      "vector[nS] v = s[Ss] .* w_alpha[Ss] / sum(w_alpha[Ss]);",
+      "vector[nS] v = s[Ss] .* w_alpha[Ss] / sum(w_alpha[Ss]) / 1000.0;",
       "for(i in 1:nS) if(v[i] < machine_precision()) v[i] = machine_precision();",
-      "return v/1000.0;"
+      "return v;"
     )
     add_data(name = "D", class="x_i", type = sprintf("array[N,%d] int<lower=0,upper=1>", locations), htype = "array[,] int", ctype=sprintf("array[%d] int", locations), rtype="array[] int", dim = locations)
     add_param(name = "alpha", type = "real<lower=machine_precision()>", ctype = "real", rtype="real", prior = ~lognormal(-0.4,0.6))
