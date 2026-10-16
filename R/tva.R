@@ -955,7 +955,7 @@ stantva_code <- function(
             sprintf("if(int_%1$s_%2$s) {", name, gr),
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[:(int_%1$s_%2$s-1)]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[:(int_%1$s_%2$s-1)]]", name, gr, index)),
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[(int_%1$s_%2$s+1):]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[(int_%1$s_%2$s+1):]]", name, gr, index)),
-            sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s]]", name, gr, index)),
+            sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s:int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s:int_%1$s_%2$s]]", name, gr, index)),
             "} else {",
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s]", name, gr, index)),
             "}"
@@ -976,7 +976,7 @@ stantva_code <- function(
           eval_prior,
           sprintf("// no prior for %s random slopes (group: %s)", name, gr),
           sprintf("if(int_%1$s_%2$s) {", name, gr),
-          sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s]]", name, gr, index)),
+          sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("s_%2$s[map_%1$s_%2$s[int_%1$s_%2$s:int_%1$s_%2$s]]", name, gr) else sprintf("s_%2$s[map_%1$s_%3$d_%2$s[int_%1$s_%2$s:int_%1$s_%2$s]]", name, gr, index)),
           "}"
         )
         sd_prior[[gr]] <- c(
@@ -1145,7 +1145,7 @@ stantva_code <- function(
             sprintf("if(int_%1$s) {", name),
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[:(int_%1$s-1)]]", name) else sprintf("b[map_%1$s_%2$d[:(int_%1$s-1)]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[(int_%1$s+1):]]", name) else sprintf("b[map_%1$s_%2$d[(int_%1$s+1):]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
-            sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+            sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s:int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s:int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
             "} else {",
             sprintf("\t%2$s ~ %1$s;", prior_slope, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s]", name) else sprintf("b[map_%1$s_%2$d]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
             "}"
@@ -1166,7 +1166,7 @@ stantva_code <- function(
           eval_prior,
           sprintf("// no prior for %s fixed slopes", name),
           sprintf("if(int_%1$s) {", name),
-          sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
+          sprintf("\t%2$s ~ %1$s;", prior_intercept, if(parameters[[name]]$hierarchical$dim == 1L) sprintf("b[map_%1$s[int_%1$s:int_%1$s]]", name) else sprintf("b[map_%1$s_%2$d[int_%1$s:int_%1$s]]", name, seq_len(parameters[[name]]$hierarchical$fdim))),
           "}"
         )
         b_prior <- c(
