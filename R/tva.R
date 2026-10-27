@@ -1868,7 +1868,7 @@ predict.stantvafit <- function(object, newdata, variables = names(model@code@df)
     which_formula <- if("param" %in% colnames(fx)) match(parname, fx$param) else NA_integer_
     if(is.na(which_formula)) {
       if(inherits(object,"stanfit")) {
-        array(t(extract(as(object,"stanfit"), parname)[[1]]), dim = if(model@code@dim[parname] > 1L) c(newdata$N,model@code@dim[parname],n_samples) else c(newdata$N,n_samples))
+        array(rep(t(extract(as(object,"stanfit"), parname)[[1]]), each = newdata$N), dim = if(model@code@dim[parname] > 1L) c(newdata$N,model@code@dim[parname],n_samples) else c(newdata$N,n_samples))
       } else {
         p <- t(if(model@code@dim[parname] > 1L) object$par[sprintf("%s[%d]", parname, seq_len(model@code@dim[parname]))] else object$par[parname])
         p[rep(1L,newdata$N),,drop=TRUE]
